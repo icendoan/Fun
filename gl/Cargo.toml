@@ -1,0 +1,13 @@
+[package]
+name = "gl"
+version = "0.1.0"
+authors = ["Caleb <icen@totally-legit.ru>"]
+
+[dependencies.gl]
+git = "https://github.com/bjz/gl-rs"
+
+[dependencies.glfw]
+git = "https://github.com/bjz/glfw-rs.git"
+
+[dependencies.glm]
+git = "https://github.com/dche/glm-rs.git"

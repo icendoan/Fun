@@ -1,0 +1,49 @@
+# ignore semi-compiled idris files
+**/*.ibc
+
+#ignore .swps
+**/*.swp
+
+#ignore tex output files
+**/*.dvi
+**/*.log
+**/*.bbl
+**/*.blg
+**/*.aux
+
+#ignore various ghc output files
+dist
+cabal-dev
+*.o
+*.hi
+*.chi
+*.chs.h
+*.dyn_o
+*.dyn_hi
+.virtualenv
+.hpc
+.hsenv
+.cabal-sandbox/
+cabal.sandbox.config
+cabal.config
+*.prof
+*.aux
+*.hp
+
+#idris ignores
+*.ibc
+*.o
+
+#vim ignores
+[._]*.s[a-w][a-z]
+[._]s[a-w][a-z]
+*.un~
+Session.vim
+.netrwhist
+*~
+
+#emacs ignores
+**/\#.*\#
+
+#cargo ignores
+**/target/**/*
