@@ -1,3 +1,5 @@
+-- Impossibly slow on loops
+-- No idea why
 import Data.List
 import Data.Vect
   
