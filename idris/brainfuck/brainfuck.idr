@@ -1,5 +1,3 @@
--- Impossibly slow on loops
--- No idea why
 import Data.List
 import Data.Vect
   
@@ -9,15 +7,15 @@ record BFState where
   val : Int
   right : Vect n Int
   
-data Action = L | R | P | M | Out | In | W (Vect k Action) | E Char
+data Action = L | R | P | M | Out | In | W (Vect k Action) | E Char | OutC
   
 emptyState : BFState
 emptyState = BFS [] 0 [] 
  
-takeCorresponding : Nat -> a -> a -> (xs : Vect n a) -> (ys : Vect m a) -> ((x ** Vect x a), (y ** Vect y a))
-takeCorresponding k s t xs (y :: ys) = case y of
-  s => takeCorresponding (S k) s t xs ys
-  t => if k == Z then ((_ ** xs), (_ ** ys)) else takeCorresponding (k - 1) s t (y::xs) (ys)
+takeCorresponding : Eq a => Nat -> a -> a -> (xs : Vect n a) -> (ys : Vect m a) -> ((x ** Vect x a), (y ** Vect y a))
+takeCorresponding k s t xs (y :: ys) = case (y == s, y == t) of
+  (True, False) => takeCorresponding (S k) s t xs ys
+  (False, True) => if k == Z then ((_ ** xs), (_ ** ys)) else takeCorresponding (k - 1) s t (y::xs) (ys)
   _ => takeCorresponding k s t (y::xs) (ys)
 takeCorresponding k s t xs [] = ((_ ** xs), (_ ** []))
 
@@ -34,9 +32,11 @@ parse_ ('+' :: cs) = let (x ** xs) = parse_ cs in (S x ** P :: xs)
 parse_ ('-' :: cs) = let (x ** xs) = parse_ cs in (S x ** M :: xs)
 parse_ ('.' :: cs) = let (x ** xs) = parse_ cs in (S x ** Out :: xs)
 parse_ (',' :: cs) = let (x ** xs) = parse_ cs in (S x ** In :: xs)
+parse_ ('!' :: cs) = let (x ** xs) = parse_ cs in (S x ** OutC :: xs)
 parse_ ('[' :: cs) = let ((_ ** xs), (_ ** ys)) = (takeCorresponding 0 '[' ']' [] cs) in 
                      let (_ ** xxs) = parse_ xs in
                      let (y ** yys) = parse_ ys in (S y ** (W xxs) :: yys)
+parse_ (c :: cs) = let (x ** xs) = parse_ cs in (S x ** (E c) :: xs)
   
 parse : String -> (n ** Vect n Action)
 parse str = let (a ** v) = (toVect . unpack) str in parse_ v
@@ -57,6 +57,9 @@ dec (BFS left val right) = return $ BFS right (val - 1) right
   
 out : BFState -> IO BFState
 out b@(BFS left val right) = do { putStrLn $ show val; return b } 
+  
+outc : BFState -> IO BFState
+outc b@(BFS left val right) = do { putStrLn $ cast . chr $ val; return b}
 
 inn : BFState -> IO BFState
 inn (BFS left val right) = do { int <- getLine ; return $ BFS left (cast int) right }
@@ -73,7 +76,9 @@ mutual
     run (M :: xs) initState = dec initState >>= run xs
     run (Out :: xs) initState = out initState >>= run xs
     run (In :: xs) initState = inn initState >>= run xs
+    run (OutC :: xs) initState = outc initState >>= run xs
     run ((W ys) :: xs) initState = while ys initState >>= run xs
+    run ((E _) :: xs) initState = return initState >>= run xs
  
 
 main : IO ()
