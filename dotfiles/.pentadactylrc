@@ -1,0 +1,12 @@
+"hg7127
+
+loadplugins '\.(js|penta)$'
+group user
+command! pwo private wopen
+command! ra reloadall
+map -count -modes=n,v j -builtin <count><C-d>
+map -count -modes=n,v k -builtin <count><C-u>
+set defsearch=duckduckgo
+set hintkeys=asdfg;lkjh
+set editor='termite -e "vim +<line> +\"sil! call cursor(0, <column>)\" <file>"'
+" vim: set ft=pentadactyl:

@@ -1,0 +1,44 @@
+general {
+                   #output_format = "dzen2"
+                   colors = true
+                   interval = 1
+           }
+
+           order += "wireless wlp4s0"
+           order += "ethernet enp0s25"
+           order += "cpu_temperature 0"
+					 order += "cpu_temperature 1"
+           order += "cpu_usage"
+           order += "tztime local"
+
+           wireless wlp4s0 {
+                   format_up = "W: (%quality at %essid, %bitrate) %ip"
+                   format_down = "W: down"
+           }
+
+           ethernet enp0s25 {
+                   # if you use %speed, i3status requires the cap_net_admin capability
+                   format_up = "E: %ip"
+                   format_down = "E: down"
+           }
+
+           tztime local {
+                   format = "%Y-%m-%d %H:%M:%S"
+           }
+
+           load {
+                   format = "%5min"
+           }
+
+           cpu_temperature 0 {
+                   format = "gpu: %degrees °c"
+									 path = "/sys/class/hwmon/hwmon1/temp1_input"
+           }
+					 cpu_temperature 1 {
+                   format = "cpu: %degrees °c"
+                   path = "/sys/class/hwmon/hwmon0/temp1_input"
+           }
+
+					 cpu_usage {
+						 format = "l: %usage"
+					 }
