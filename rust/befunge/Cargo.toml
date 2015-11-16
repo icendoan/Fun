@@ -1,0 +1,4 @@
+[package]
+name = "befunge"
+version = "0.1.0"
+authors = ["Caleb <calebquilley@virginmedia.com>"]
