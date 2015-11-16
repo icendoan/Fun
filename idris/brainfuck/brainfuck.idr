@@ -15,17 +15,16 @@ emptyState : BFState
 emptyState = BFS [] 0 [] 
  
 takeCorresponding : Eq a => Nat -> a -> a -> (xs : Vect n a) -> (ys : Vect m a) -> ((x ** Vect x a), (y ** Vect y a))
-takeCorresponding k s t xs (y :: ys) = case ((y == s), (y == t)) of
-  (True, False) => takeCorresponding (S k) s t xs ys
-  (False, True) => if k == Z then ((_ ** xs), (_ ** ys)) else takeCorresponding (k - 1) s t (y::xs) (ys)
+takeCorresponding k s t xs (y :: ys) = case ((y == s), (y == t), k) of
+  (True, False, k) => takeCorresponding (S k) s t xs ys
+  (False, True, (S k)) => takeCorresponding k s t (y::xs) (ys)
+  (False, True, Z) => ((_ ** xs), (_ ** ys))
   _ => takeCorresponding k s t (y::xs) (ys)
 takeCorresponding k s t xs [] = ((_ ** xs), (_ ** []))
 
+fromString : (s : String) -> Vect (length s) Char
+fromString s = Vect.take (length s) . unpack $ s 
 
-toVect : List a -> (n : Nat ** Vect n a)
-toVect [] = (0 ** [])
-toVect (x::xs) = let (k ** ys) = toVect xs in ((S k) ** x::ys) 
-  
 parse_ : Vect n Char -> (k ** Vect k Action)
 parse_ [] = (_ ** [])
 parse_ ('>' :: cs) = let (x ** xs) = parse_ cs in (S x ** L :: xs)
@@ -39,7 +38,7 @@ parse_ ('[' :: cs) = let ((_ ** xs), (_ ** ys)) = (takeCorresponding 0 '[' ']' [
                      let (y ** yys) = parse_ ys in (S y ** (W xxs) :: yys)
   
 parse : String -> (n ** Vect n Action)
-parse str = let (a ** v) = (toVect . unpack) str in parse_ v
+parse = parse_ . fromString
 
 mleft : BFState -> IO BFState
 mleft (BFS [] val right) = return $ BFS [] 0 (val :: right)
