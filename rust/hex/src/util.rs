@@ -1,5 +1,5 @@
 use std::ops::{Add, Mul, Sub, Div, Index, IndexMut};
-use lib;
+#[macro_export]
 macro_rules! numeric_impl 
 {
     ($t:ident, 1) => {
@@ -56,6 +56,7 @@ macro_rules! numeric_impl
     }
 }
 
+#[macro_export]
 macro_rules! scalar_impl
 {
     ($s:ident, $t:ty, 1) =>
@@ -106,6 +107,7 @@ macro_rules! scalar_impl
     };
 }
 
+#[macro_export]
 macro_rules! index_impl
 {
     ($x:ty, $y:ty, $o:ty) =>
@@ -147,6 +149,8 @@ pub struct Id(usize);
 pub struct Speed(usize);
 #[derive(Copy, Clone, PartialEq, PartialOrd, Eq, Debug, Ord)]
 pub struct Priority(usize);
+#[derive(Copy, Clone, PartialEq, PartialOrd, Eq, Debug, Ord)]
+pub struct Index(usize);
 
 numeric_impl!{Attack, 1}
 scalar_impl!{Attack, usize, 1}
@@ -162,7 +166,6 @@ numeric_impl!{Speed, 1}
 scalar_impl!{Speed, usize, 1}
 numeric_impl!{Id,1}
 scalar_impl!{Id,usize,1}
-index_impl!{Vec<lib::Unit>,Id,lib::Unit}
 numeric_impl!{Priority, 1}
 scalar_impl!{Priority, usize, 1}
 

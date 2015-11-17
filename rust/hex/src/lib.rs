@@ -3,6 +3,7 @@
 
 mod gfx;
 mod config;
+#[macro_use]
 mod util;
 
 use gfx::*;
@@ -42,14 +43,15 @@ pub struct Tile
     coords : Hex,
     elevation : Elevation,
     weather : Weather,
-    raw_res : Vec<(Product, usize)>, // raw resources - (type, max extracted per tick)
-    produces : Vec<(Product, usize)>, // actual current production
+    raw_res : Vec<(Product, Size)>, // raw resources - (type, max extracted per tick)
+    produces : Vec<(Product, Size)>, // actual current production
     units : Vec<Unit>, // tiles own the units on them?
-    goods : Vec<(Product, usize)>, // goods currently in the local stockpile
-    exports : Vec<(Hex, Product, usize)>, // exports to neighbouring hexes
-    infrastructure : Width, // total width of Units moving(!) through the tile at any one moment
+    goods : Vec<(Product, Size)>, // goods currently in the local stockpile
+    exports : Vec<(Hex, Product, Size, Priority)>, // exports to neighbouring hexes
+    movements : // for each neighbouring hex, how to move there - roads, rail, pipes, boat, etc BTreeMap seems natural, but probably overkill
 }
 
+index_impl!{Vec<Unit>,Id,Unit}
 
 pub fn build_map(radius : usize) -> Map
 {
@@ -57,14 +59,16 @@ pub fn build_map(radius : usize) -> Map
 
 impl Map
 {
-    pub fn get_tile(&self, hex : Hex) -> &Tile
+    pub fn get_tile(&self, hex : &Hex) -> &Tile
     {
+        self.board.get(hex).unwrap()
     }
 
     // the map should always keep ownership of the tile!
     // use a mutable reference instead
-    pub fn get_tile_mut(&mut self, hex : Hex) -> &mut Tile
+    pub fn get_tile_mut(&mut self, hex : &Hex) -> &mut Tile
     {
+        self.board.get_mut(hex).unwrap()
     }
 }
 
@@ -73,7 +77,7 @@ impl<'b> Index<&'b Hex> for Map
     type Output = Tile;
     fn index<'a>(&'a self, index : &'b Hex) -> &'a Tile
     {
-        self.board.get(index).unwrap()
+        self.get_tile(index)
     }
 }
         
@@ -90,8 +94,10 @@ impl Tile
     // tries to move the unit to the tile specified by hex
     // returns the number of ticks until the unit reaches the next
     // fails with a HexError if there is no route, or unit cannot move, etc
-    pub fn move_unit(&mut self, unit : Id, to : Hex) -> Result<usize,HexError>
+    pub fn move_unit(&mut self, unit : Id, to : Hex) -> Result<Size,HexError>
     {
+        if !self.units.contains(unit)
+            { return Err(HexError::Minor(format!("No unit with Id: {:?} exists in {:?}", unit, self.coords))) }
         match find_path(self.coords, to)
         {
             Some(path) => {
@@ -102,8 +108,22 @@ impl Tile
         }
     }
 
-    pub fn add_export(&mut self, product : Product, to : Hex) -> Result<usize, HexError>
+    // tries to add the 
+    pub fn add_export(&mut self, product : Product, amount : Size, priority : Priority, to : Hex) -> Result<Size, HexError>
     {
+        if self.is_neighbour(to)
+        {
+            let mut exported : Size = Size(0);
+            for i in 0..self.exports.len() + 1
+            {
+                if self.exports[i].4 < priority
+                {
+                    self.exports.insert((to, product, amount, priority));
+                    break;
+                }
+            }
+        }
+        else
     }
 }
 
