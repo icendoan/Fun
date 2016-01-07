@@ -8,29 +8,33 @@
 
 (setq inhibit-splash-screen t)
 
-(setq racer-cmd (expand-file-name "/home/tylercapital.ads/cquilley/git/racer/target/release/racer"))
-(setq racer-rust-src-path (expand-file-name "~/rustc-nightly/src/"))
 
-(add-hook 'rust-mode-hook #'racer-mode)
-
+;; Company mode and associated plugins
 (global-company-mode)
 (define-key company-active-map (kbd "j") 'company-select-next)
 (define-key company-active-map (kbd "k") 'company-select-previous)
 (define-key company-active-map (kbd "<esc>") 'company-abort)
-
-(require 'company-racer)
-(add-to-list 'company-backends 'company-racer)
-(require 'company-jedi)
-(add-to-list 'company-backends 'company-jedi)
-
 (global-set-key (kbd "TAB") #'company-indent-or-complete-common)
 (global-set-key (kbd "C-<tab>") #'company-complete-common-or-cycle)
 (setq company-tooltip-align-annotations t)
 
-(load-file "~/.emacs.d/q-mode/q-mode.el")
-(require 'q-mode)
+(setq racer-cmd (expand-file-name "/home/tylercapital.ads/cquilley/git/racer/target/release/racer"))
+(setq racer-rust-src-path (expand-file-name "~/rustc-nightly/src/"))
+(add-hook 'rust-mode-hook #'racer-mode)
+(require 'company-racer)
+(add-to-list 'company-backends 'company-racer)
 
+(require 'company-jedi)
+(add-to-list 'company-backends 'company-jedi)
+
+;; load q-mode file
+(load-file "~/.emacs.d/q-mode/q-mode.elc")
+(require 'q-mode)
+;; autoselect js2-mode instead of the older Javascript-mode
+(add-to-list 'auto-mode-alist '("\\.js\\'" . js2-mode))
+;; require idris-mode before defining evil keys
 (require 'idris-mode)
+
 (setq evil-want-C-u-scroll t)
 (require 'evil)
 (require 'evil-leader)
@@ -63,10 +67,14 @@
 
 ;; org mode
 (evil-leader/set-key-for-mode 'org-mode "a" 'org-insert-heading-after-current)
-(evil-leader/set-key-for-mode 'org-mode "A" 'org-insert-todo-heading-respect-content)
+(evil-leader/set-key-for-mode 'org-mode "A" 'org-insert-todo-subheading)
 (evil-leader/set-key-for-mode 'org-mode "h" 'org-metaleft)
 (evil-leader/set-key-for-mode 'org-mode "l" 'org-metaright)
 (evil-leader/set-key-for-mode 'org-mode "t" 'org-todo)
+(evil-leader/set-key-for-mode 'org-mode "p" 'org-priority-up)
+(evil-leader/set-key-for-mode 'org-mode "P" 'org-priority-down)
+
+;; js2-mode
 
 (require 'rustfmt)
 (add-hook 'rust-mode-hook #'rustfmt-enable-on-save)
@@ -85,6 +93,7 @@
 
 ;; Org-mode
 (setq org-log-done 'time)
+(setq org-todo-keywords '((sequence "TODO" "VERIFY" "|" "BLOCKED" "DELEGATED" "DONE")))
 
 ;; M-x compile hooks
 (setq compilation-scroll-output 'first-error)
@@ -93,8 +102,16 @@
 	    (if (file-exists-p "Cargo.toml")
 		(set (make-local-variable 'compile-command) "cargo build")
 	      (if (file-exists-p "../Cargo.toml")
-		  (set (make-local-variable 'compile-command) "cargo build --manifest-path ..")
+		  (set (make-local-variable 'compile-command) "cargo build --manifest-path ../Cargo.toml")
 		(set (make-local-variable 'compile-command) (concat "rustc " buffer-file-name))))))
+
+(add-hook 'java-mode-hook
+	  (lambda()
+	    (set (make-local-variable 'compile-command) (concat "javac " buffer-file-name))))
+
+
+;; desktop mode
+(desktop-save-mode 1)
 
 (custom-set-variables
  ;; custom-set-variables was added by Custom.

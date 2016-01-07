@@ -1,14 +1,14 @@
 import Data.Vect
 
-plusReduces : (n : Nat) -> (m : Nat) -> S (plus n m) = plus (S n) m
-plusReduces n Z = Refl
-plusReduces n (S m) = cong (plusReduces n m)
+--plusReduces : (n : Nat) -> (m : Nat) -> S (plus n m) = plus (S n) m
+--plusReduces n Z = Refl
+--plusReduces n (S m) = cong {f= \x => S x} (plusReduces n m)
  
 separate : Vect n a -> Vect n (Vect 1 a)
 separate [] = []
 separate (x :: xs) = [x] :: separate xs
 
-readNat : Char -> Maybe Nat
+readNat : Num n => Char -> Maybe n
 readNat '0' = Just 0
 readNat '1' = Just 1
 readNat '2' = Just 2
@@ -20,7 +20,16 @@ readNat '7' = Just 7
 readNat '8' = Just 8
 readNat '9' = Just 9
 readNat _   = Nothing
-
+  
+readNum_ : Num n => Maybe n -> Char -> Maybe n
+readNum_ n c = do
+  x <- n
+  y <- readNat c
+  return $ 10 * x + y
+  
+readNum : Num n => String -> Maybe n
+readNum s = Foldable.foldl (\mn,c => readNum_ mn c) (Just 0) $ unpack s
+  
 second : (a ** b) -> b
 second (MkSigma a b) = b
   
