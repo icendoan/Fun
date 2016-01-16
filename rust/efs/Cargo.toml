@@ -1,0 +1,6 @@
+[package]
+name = "efs"
+version = "0.1.0"
+authors = ["Caleb <icen@totally-legit.ru>"]
+
+[dependencies]
