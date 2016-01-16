@@ -154,18 +154,9 @@ impl<'a> Iterator for Scanner<'a>
                     {
                         Ok((Token::Placeholder, m)) =>
                         {
-                            if self.ix_e == 1024
-                            {
-                                println!("Buffer exhausted!");
-                                println!("Buffer: {:?}", &self.buf[..self.ix_e]);
-                                panic!();
-                            }
-                            else
-                            {
-                                self.buf[self.ix_e] = c;
-                                self.ix_e += 1;
-                                self.mode = m;
-                            }
+                            self.buf[self.ix_e] = c;
+                            self.ix_e += 1;
+                            self.mode = m;
                         },
 
                         Ok((t, m)) =>
@@ -386,6 +377,7 @@ fn matches(src : &[char], peek : char, mode : LexMode) -> PResult<(Token, LexMod
                     '{' => Ok((Token::Placeholder, mode)),
                     '}' => Ok((Token::Placeholder, mode)),
                     '=' => Ok((Token::Placeholder, mode)),
+                    '-' => Ok((Token::Placeholder, mode)),
                     c if c.is_whitespace() =>
                     {
                         Ok((Token::Placeholder, mode))
@@ -406,6 +398,7 @@ fn matches(src : &[char], peek : char, mode : LexMode) -> PResult<(Token, LexMod
                     '{' |
                     '}' |
                     '=' => LexMode::Unknown,
+                    '-' => LexMode::Unknown,
                     c if c.is_whitespace() => LexMode::Unknown,
                     '"' => LexMode::String,
                     _ => LexMode::Ident
@@ -426,9 +419,10 @@ fn matches(src : &[char], peek : char, mode : LexMode) -> PResult<(Token, LexMod
                         Ok((Token::Delim, next_mode))
                     },
                     ['"'] => Ok((Token::Placeholder, LexMode::String)),
-                    [c] if c.is_digit(10) =>
+                    [c] |
+                    ['-', c] if c.is_digit(10) =>
                     {
-                        Ok((Token::Placeholder, LexMode::Num))
+                        Ok((Token::Placeholder, next_mode))
                     },
                     _ => Ok((Token::Placeholder, LexMode::Ident))
 
@@ -624,12 +618,12 @@ pub fn parse(path : &Path)-> PResult<Vec<Mil>>
 
 
    
-    for t in tokens
-    {
-        println!("{:?}", t);
-    }
+    //for t in tokens
+    //{
+    //    println!("{:?}", t);
+    //}
 
-    return Ok(vec![]);
+    //return Ok(vec![]);
     
 
     let mut tag : [char; 3] = [0 as char; 3];
