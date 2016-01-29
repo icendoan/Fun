@@ -46,8 +46,16 @@
 (evil-leader/set-leader "<SPC>")
 (evil-mode 1)
 
+;;(require 'dedicated)
+;;(require 'window-purpose)
+;;(purpose-mode)
+
 ;; Evil leader keys
  
+(evil-leader/set-key "n" 'next-error)
+
+(evil-leader/set-key-for-mode 'emacs-lisp-mode "r" 'eval-buffer)
+
 ;; python mode
 (evil-leader/set-key-for-mode 'python-mode "r" 'python-shell-send-buffer)
 (evil-leader/set-key-for-mode 'python-mode "l" 'python-eldoc-at-point)
@@ -74,6 +82,13 @@
 (evil-leader/set-key-for-mode 'org-mode "p" 'org-priority-up)
 (evil-leader/set-key-for-mode 'org-mode "P" 'org-priority-down)
 
+
+;; idris-mode
+(evil-leader/set-key-for-mode 'idris-mode "e" 'idris-make-lemma)
+(evil-leader/set-key-for-mode 'idris-mode "j" 'idris-load-forward-line)
+(evil-leader/set-key-for-mode 'idris-mode "k" 'idris-load-backward-line)
+(evil-leader/set-key-for-mode 'idris-mode "L" 'idris-load-to-here)
+
 ;; js2-mode
 
 (require 'rustfmt)
@@ -93,16 +108,18 @@
 
 ;; Org-mode
 (setq org-log-done 'time)
-(setq org-todo-keywords '((sequence "TODO" "VERIFY" "|" "BLOCKED" "DELEGATED" "DONE")))
+(setq org-todo-keywords '((sequence "TODO" "VERIFY" "|" "DONE" "BLOCKED" "DELEGATED" "PENDING")))
 
 ;; M-x compile hooks
+(global-set-key (kbd "<f5>") 'compile)
+
 (setq compilation-scroll-output 'first-error)
 (add-hook 'rust-mode-hook
 	  (lambda ()
 	    (if (file-exists-p "Cargo.toml")
-		(set (make-local-variable 'compile-command) "cargo build")
+		(set (make-local-variable 'compile-command) "cargo check --lib && cargo test") 
 	      (if (file-exists-p "../Cargo.toml")
-		  (set (make-local-variable 'compile-command) "cargo build --manifest-path ../Cargo.toml")
+		  (set (make-local-variable 'compile-command) "cargo check --manifest-path ../Cargo.toml --lib && cargo test --manifest-path ../Cargo.toml")
 		(set (make-local-variable 'compile-command) (concat "rustc " buffer-file-name))))))
 
 (add-hook 'java-mode-hook
@@ -112,6 +129,7 @@
 
 ;; desktop mode
 (desktop-save-mode 1)
+(setq desktop-load-locked-desktop) ; gets the emacs server to autoload files
 
 (custom-set-variables
  ;; custom-set-variables was added by Custom.
@@ -123,12 +141,22 @@
  '(company-racer-rust-src nil)
  '(company-selection-wrap-around t)
  '(company-tooltip-align-annotations t)
+ '(compilation-skip-threshold 2)
  '(custom-safe-themes
    (quote
     ("4aee8551b53a43a883cb0b7f3255d6859d766b6c5e14bcb01bed572fcbef4328" default)))
+ '(electric-pair-mode t)
  '(global-company-mode t)
+ '(purpose-use-default-configuration nil)
+ '(purpose-user-name-purposes
+   (quote
+    (("*idris-holes*" . notes)
+     ("*idris-notes*" . notes)
+     ("*compilation*" . notes)
+     ("*idris-repl*" . repl)
+     ("*q*" . repl))))
  '(racer-cmd
-   "/home/tylercapital.ads/cquilley/git/racer/target/release/racer" t)
+   "/home/tylercapital.ads/cquilley/git/racer/target/release/racer")
  '(show-paren-mode t)
  '(tool-bar-mode nil))
 (custom-set-faces

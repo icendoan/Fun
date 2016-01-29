@@ -653,7 +653,7 @@
 
     (concat "\\b" (regexp-opt 
 
-		   '("acos" "asin" "atan" "avg" "bin" "by" "cos" "delete" "do"
+		   '("acos" "asin" "atan" "avg" "avgs" "bin" "by" "cos" "delete" "do"
 
 		     "exec" "exit" "exp" "from" "getenv" "if" "in" "insert" "last" "like"
 
