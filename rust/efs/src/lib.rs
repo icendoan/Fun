@@ -45,11 +45,10 @@ impl Mil
 
 impl Army
 {
-    fn new(tag : &Tag) -> Army
+    fn new() -> Army
     {
         Army
         {
-            tag: tag.clone(),
             irr: 0, 
             cav: 0, 
             inf: 0, 
@@ -63,10 +62,10 @@ impl Army
             pla: 0 
         }
     }
-    fn to_csv_string(&self) -> String
+    fn to_csv_string(&self, tag : &Tag) -> String
     {
         format!("ARMY,{},{},{},{},{},{},{},{},{},{},{},{}",
-                parser::to_string(&self.tag),
+                parser::to_string(tag),
                 self.irr,
                 self.cav,
                 self.inf,
@@ -83,11 +82,10 @@ impl Army
 
 impl Navy
 {
-    fn new(tag : &Tag) -> Navy
+    fn new() -> Navy
     {
         Navy
         {
-            tag: tag.clone(),
             cli: 0,
             fri: 0,
             man: 0,
@@ -101,10 +99,10 @@ impl Navy
         }
     }
 
-    fn to_csv_string(&self) -> String
+    fn to_csv_string(&self, tag: &Tag) -> String
     {
         format!("NAVY,{},{},{},{},{},{},{},{},{},{},{}",
-                parser::to_string(&self.tag),
+                parser::to_string(tag),
                 self.cli,
                 self.fri,
                 self.man,

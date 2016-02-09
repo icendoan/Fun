@@ -1,4 +1,6 @@
-use std::collections::VecDeque;
+#![feature(slice_patterns, advanced_slice_patterns)]
+
+use std::collections::{VecDeque, BTreeMap};
 use std::str::Chars;
 use std::path::Path;
 use std::fs::File;
@@ -163,13 +165,6 @@ fn matches(src : &[char], peek : char, mode : LexMode) -> PResult<(Token, LexMod
         // of the peek char 
         LexMode::Unknown =>
         {
-            // todo: fix
-            // have a look at the peek if the slice is empty
-            // and just return a Placeholder and a new mode
-            // if the slice is not empty, try to match
-            // should avoid throwing away single characters that act as delims for
-            // larger tokens
-
             if src.len() == 0
             {
                 match peek
@@ -381,10 +376,11 @@ fn to_regtype(s : &str) -> Option<Regtype>
 
 */
 
-pub fn parse(path : &Path)-> PResult<Vec<Mil>>
+pub fn parse<'a>(path : &Path)-> PResult<Save>
 {
     let mut buf : [char; 1024] = [0 as char; 1024]; // should be enough!
     let mut src : String = String::with_capacity(20 * 1024 * 1024); // 20MB to start
+
     match File::open(path)
     {
         Ok(mut file) => match file.read_to_string(&mut src)
@@ -405,19 +401,16 @@ pub fn parse(path : &Path)-> PResult<Vec<Mil>>
 
     let mut tag : [char; 3] = [0 as char; 3];
 
-    // 100 armies should be a good enough starting point
-    // if we need more, we'll just allocate for another 100
-    let mut results : Vec<Mil> = Vec::with_capacity(100);
-    
-    try!(root(&mut tokens, &mut tag, &mut results));
+    try!(root(&mut tokens));
 
     Ok(results)
 }
 
-fn root(tokens : &mut Scanner,
-            tag : &mut Tag,
-            res : &mut Vec<Mil>) -> PResult<()>
+fn root(tokens : &mut Scanner) -> PResult<Save>
 {
+    let mut nats: BTreeMap<Tag, Nation> = BTreeMap::new();
+    let mut prov: BTreeMap<u64, Province> = BTreeMap::new();
+    let mut tag: Tag = [0 as char; 3];
     loop
     {
         match tokens.next()
@@ -428,15 +421,21 @@ fn root(tokens : &mut Scanner,
                 {
                     tokens.put_back(Token::Ident(s));
                     
-                    match nation(tokens, tag, res)
+                    match nation(tokens, &mut tag)
                     {
-                        Ok(()) => (),
+                        Ok(n) => nations.insert(tag.clone(), n), // tag should be set by nation
                         Err(e) =>
                         {
                             return Err(e);
                         }
                     }
                 }
+            },
+
+            Some(Token::Int) => match tokens.next()
+            {
+                Some(Token::Eq) => try!(province(tokens, &mut tag, &mut prov)),
+                _ => {}
             },
 
             None => return Ok(()),
@@ -449,8 +448,7 @@ fn root(tokens : &mut Scanner,
 }
 
 fn nation(tokens : &mut Scanner,
-          tag : &mut Tag,
-          res : &mut Vec<Mil>) -> PResult<()>
+          tag : &mut Tag) -> PResult<Nation>
 {
     match tokens.next()
     {
@@ -471,24 +469,45 @@ fn nation(tokens : &mut Scanner,
 
     let mut num_braces : u64 = 0;
 
+    let mut nation: Nation = Nation::new();
+
     loop
     {
         match tokens.next()
         {
-            Some(Token::Ident(s)) =>
+            Some(Token::Ident(s)) => match &s
             {
-                if &s == "army"
+                &["army"] =>
                 {
                     tokens.put_back(Token::Ident(s));
-                    try!(army(tokens, tag, res));
-                }
-                
-                else if &s == "navy"
+                    try!(army(tokens, tag, &mut nation.armies));
+                },
+                &["navy"] =>
                 {
                     tokens.put_back(Token::Ident(s));
-                    try!(navy(tokens, tag, res));
+                    try!(army(tokens, tag, &mut nation.navies));
+                },
+                &["treasury"] =>
+                {
+                    tokens.put_back(Token::Ident(s));
+                    try!(treasury(tokens, tag, &mut nation.money));
+                },
+                &["primary"] =>
+                {
+                    tokens.put_back(Token::Ident(s));
+                    try!(primary(tokens, tag, &mut nation.accepted));
+                },
+                &["accepted"] =>
+                {
+                    tokens.put_back(Token::Ident(s));
+                    try!(accepted(tokens, tag, &mut nation.accepted));
                 }
-            },
+                ref t if is_tech(t) =>
+                {
+                    tokens.put_back(Token::Ident(s));
+                    try!(tech(tokens, tag, &mut nation.tech));
+                }
+            }
 
             Some(Token::CloseBrace) if num_braces == 1 =>
             {
@@ -513,7 +532,7 @@ fn nation(tokens : &mut Scanner,
 
 fn army(tokens : &mut Scanner, tag : &mut Tag, res : &mut Vec<Mil>) -> PResult<()>
 {
-    let mut army : Army = Army::new(tag);
+    let mut army : Army = Army::new();
     let mut num_braces : u64 = 0;
     
     //println!("Found army...");
@@ -831,6 +850,59 @@ fn ship_type(tokens : &mut Scanner,
         },
         _ => Err(PError::new("Not a shiptype", None, None))
     }
+}
+
+fn treasury(tokens: &mut Scanner,
+            tag: &Tag,
+            money: &mut f64) -> PResult<()>
+{
+    match tokens.next()
+    {
+        Some(Token::Ident(s)) => match &s
+        {
+            &["treasury"] => match tokens.next()
+            {
+                Some(Token::Eq) => match tokens.next()
+                {
+                    Some(Token::Float(f)) => *money = f;
+                }
+            },
+            _ => Err(PError::new("Bad ident",
+                                 Some(Token::Ident(s)),
+                                 Some(Token::Ident("treasury".into()))))
+        },
+
+        Some(t) => Err(PError::new("Not an ident",
+                                   Some(t),
+                                   Some(Token::Ident("treasury".into())))),
+
+        _ => ueof(Token::Ident("treasury".into()))
+    }
+}
+
+fn primary(tokens: &mut Scanner,
+           tag: &Tag,
+           accepted: &mut Vec<String>) -> PResult<()>
+
+{
+    Ok(())
+}
+
+fn accepted(tokens: &mut Scanner,
+            tag: &Tag,
+            accepted: &mut Vec<String>) -> PResult<()>
+{
+    Ok(())
+}
+
+fn is_tech(t : &str) -> bool
+{
+    match t
+    {
+        ;
+    }
+
+    false
 }
 
 // for unexpected EOF errors

@@ -1,4 +1,4 @@
-pub type Save<'a> = Vec<Nation<'a>>;
+pub type Save = Vec<Nation>;
 pub type PResult<T> = Result<T, PError>;
 pub type Tag = [char; 3];
 
@@ -28,13 +28,28 @@ impl PError
 #[derive(Debug)]
 pub struct Nation<'a>
 {
-    pub primary  : &'a str,
-    pub accepted : Vec<&'a str>,
+    pub accepted : Vec<String>,
     pub money    : f64,
-    pub states   : Vec<State<'a>>,
+    pub states   : Vec<State>,
     pub armies   : Vec<Army>,
     pub navies   : Vec<Navy>,
     pub tech     : Tech
+}
+
+impl Nation
+{
+    pub fn new() -> Nation
+    {
+        Nation
+        {
+            accepted: Vec::with_capacity(5),
+            money: 0.0,
+            states: Vec::with_capacity(50),
+            armies: Vec::with_capacity(50),
+            navies: Vec::with_capacity(50),
+            tech: Default::default()
+        }
+    }
 }
 
 // don't need to actually worry about *which* techs, only record the number
@@ -49,13 +64,21 @@ pub struct Tech
     pub ind : u64
 }
 
+impl Default for Tech
+{
+    fn default() -> Tech
+    {
+        Tech { arm: 0, nav: 0, com: 0, cul: 0, ind: 0 }
+    }
+}
+
 #[derive(Debug)]
 pub struct Pop<'a>
 {
     pub size    : u64,
     pub money   : f64,
     pub poptype : Poptype,
-    pub culture : &'a str, // intern strings somewhere?
+    pub culture : Option<&'a str>, 
     pub mil     : f64,
     pub con     : f64,
     // maybe expand with needs as well, at some stage?
@@ -126,7 +149,6 @@ pub enum Good
 #[derive(Debug)]
 pub struct Army
 {
-    pub tag : [char; 3], // 
     pub irr : u64,
     pub cav : u64,
     pub inf : u64,
@@ -143,7 +165,6 @@ pub struct Army
 #[derive(Debug)]
 pub struct Navy
 {
-    pub tag : [char; 3], 
     pub cli : u64,
     pub fri : u64,
     pub man : u64,
