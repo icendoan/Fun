@@ -7,9 +7,9 @@ use std::str::Chars;
 use std::collections::VecDeque;
 use std::error::Error;
 
-pub mod defs;
-pub mod parser;
-pub mod repl;
+mod defs;
+mod parser;
+mod repl;
 
 #[macro_use]
 pub use defs::*;
@@ -23,47 +23,29 @@ use repl::eval;
 // and COUNT[N] is the number of units of that type in that army/navy
 // in the order presented in the structs
 
-impl<'a> Nation<'a>
-{
-    fn to_csv_str(&self) -> String
-    {
+impl Nation {
+    fn to_csv_str(&self) -> String {
         String::new()
     }
 }
 
-impl Mil
-{
-    fn to_csv_str(&self) -> String
-    {
-        match self
-        {
-            &Mil::A(ref a) => a.to_csv_string(),
-            &Mil::N(ref n) => n.to_csv_string()
+impl Army {
+    fn new() -> Army {
+        Army {
+            irr: 0,
+            cav: 0,
+            inf: 0,
+            hus: 0,
+            cui: 0,
+            dra: 0,
+            art: 0,
+            eng: 0,
+            gua: 0,
+            arm: 0,
+            pla: 0,
         }
     }
-}
-
-impl Army
-{
-    fn new() -> Army
-    {
-        Army
-        {
-            irr: 0, 
-            cav: 0, 
-            inf: 0, 
-            hus: 0, 
-            cui: 0, 
-            dra: 0, 
-            art: 0, 
-            eng: 0, 
-            gua: 0, 
-            arm: 0, 
-            pla: 0 
-        }
-    }
-    fn to_csv_string(&self, tag : &Tag) -> String
-    {
+    fn to_csv_string(&self, tag: &Tag) -> String {
         format!("ARMY,{},{},{},{},{},{},{},{},{},{},{},{}",
                 parser::to_string(tag),
                 self.irr,
@@ -80,12 +62,9 @@ impl Army
     }
 }
 
-impl Navy
-{
-    fn new() -> Navy
-    {
-        Navy
-        {
+impl Navy {
+    fn new() -> Navy {
+        Navy {
             cli: 0,
             fri: 0,
             man: 0,
@@ -95,12 +74,11 @@ impl Navy
             iro: 0,
             cru: 0,
             bat: 0,
-            dre: 0
+            dre: 0,
         }
     }
 
-    fn to_csv_string(&self, tag: &Tag) -> String
-    {
+    fn to_csv_string(&self, tag: &Tag) -> String {
         format!("NAVY,{},{},{},{},{},{},{},{},{},{},{}",
                 parser::to_string(tag),
                 self.cli,
