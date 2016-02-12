@@ -38,6 +38,37 @@ impl<'a> Iterator for Scanner<'a>
             return self.store.pop_front();
         }
 
+        self.__raw_next_token()
+    }
+}
+
+impl<'a> Scanner<'a>
+{
+
+    fn new(buf : &'a mut [char], stream : Chars<'a>) -> Scanner<'a>
+    {
+        Scanner
+        {
+            buf: buf,
+            ix_e: 0,
+            store: VecDeque::new(),
+            stream: stream,
+            mode: LexMode::Unknown
+        }
+    }
+
+    fn put_back(&mut self, t : Token)
+    {
+        self.store.push_front(t);
+    }
+
+    fn set_mode(&mut self, m : LexMode)
+    {
+        self.mode = m;
+    }
+
+    fn __raw_next_token(&mut self) -> Option<Token>
+    {
         loop
         {
             match self.stream.next()
@@ -73,30 +104,19 @@ impl<'a> Iterator for Scanner<'a>
             }
         }
     }
-}
-
-impl<'a> Scanner<'a>
-{
-    fn new(buf : &'a mut [char], stream : Chars<'a>) -> Scanner<'a>
+    
+    /// Attempts to read the next ```n``` tokens and store them in the pushback store
+    /// Returns the number actually read
+    fn buffer(&mut self, n: usize) -> usize
     {
-        Scanner
+        let mut c: usize = 0;
+        for _ in 0..n
         {
-            buf: buf,
-            ix_e: 0,
-            store: VecDeque::new(),
-            stream: stream,
-            mode: LexMode::Unknown
+            match self.stream.next()
+            {
+                
+            }
         }
-    }
-
-    fn put_back(&mut self, t : Token)
-    {
-        self.store.push_front(t);
-    }
-
-    fn set_mode(&mut self, m : LexMode)
-    {
-        self.mode = m;
     }
 }
 fn matches(src : &[char], peek : char, mode : LexMode) -> PResult<(Token, LexMode)>
@@ -892,7 +912,10 @@ fn accepted(tokens: &mut Scanner,
             tag: &Tag,
             accepted: &mut Vec<String>) -> PResult<()>
 {
-    Ok(())
+    match tokens.next()
+    {
+        
+    }
 }
 
 fn is_tech(t : &str) -> bool
