@@ -33,6 +33,30 @@ impl<'a> Iterator for Scanner<'a> {
             return self.store.pop_front();
         }
 
+        self.__raw_next_token()
+    }
+}
+
+impl<'a> Scanner<'a> {
+    fn new(buf: &'a mut [char], stream: Chars<'a>) -> Scanner<'a> {
+        Scanner {
+            buf: buf,
+            ix_e: 0,
+            store: VecDeque::new(),
+            stream: stream,
+            mode: LexMode::Unknown,
+        }
+    }
+
+    fn put_back(&mut self, t: Token) {
+        self.store.push_front(t);
+    }
+
+    fn set_mode(&mut self, m: LexMode) {
+        self.mode = m;
+    }
+
+    fn __raw_next_token(&mut self) -> Option<Token> {
         loop {
             match self.stream.next() {
                 Some(c) => {
@@ -63,25 +87,6 @@ impl<'a> Iterator for Scanner<'a> {
     }
 }
 
-impl<'a> Scanner<'a> {
-    fn new(buf: &'a mut [char], stream: Chars<'a>) -> Scanner<'a> {
-        Scanner {
-            buf: buf,
-            ix_e: 0,
-            store: VecDeque::new(),
-            stream: stream,
-            mode: LexMode::Unknown,
-        }
-    }
-
-    fn put_back(&mut self, t: Token) {
-        self.store.push_front(t);
-    }
-
-    fn set_mode(&mut self, m: LexMode) {
-        self.mode = m;
-    }
-}
 fn matches(src: &[char], peek: char, mode: LexMode) -> PResult<(Token, LexMode)> {
     match mode {
         // other identifier currently in buffer
@@ -785,7 +790,10 @@ fn primary(tokens: &mut Scanner, tag: &Tag, accepted: &mut Vec<String>) -> PResu
 }
 
 fn accepted(tokens: &mut Scanner, tag: &Tag, accepted: &mut Vec<String>) -> PResult<()> {
-    Ok(())
+    match tokens.next()
+    {
+        
+    }
 }
 
 fn is_tech(t: &str) -> bool {
