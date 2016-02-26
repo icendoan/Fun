@@ -1,32 +1,131 @@
 import Data.Vect
 import Data.Bits
+import Data.Morphisms
+  
+namespace Data.ZZ -- until this is moved to base  
+  ||| An int is either a positive nat, or the negated successor of a nat
+  ||| Zero is positive
+  data ZZ : Type where
+    Pos  : Nat -> ZZ
+    NegS : Nat -> ZZ
+  
+  Eq ZZ where
+    (Pos n) == (Pos m) = n == m
+    (NegS n) == (NegS m) = n == m
+    _ == _ = False
+  
+  Ord ZZ where
+    compare (Pos n) (Pos m) = compare n m
+    compare (NegS n) (NegS m) = compare m n
+    compare (Pos _) (NegS _) = GT
+    compare (NegS _) (Pos _) = LT
+  
+  Num ZZ where
+    a + b = ?plus_zz
+    a * b = ?mult_zz
+    fromInteger x = ?fromInt_zz
+  
+  Neg ZZ where
+    negate a = ?negate_zz
+    a - b = ?sub_zz
+    abs a = ?abs_zz
+  
+  
+  
+namespace Data.Representation
+
+  ||| A pair of an abstract, erased type and a core representation
+  ||| along with an application function that lifts any change to the 
+  ||| abstract type to the representation
+  data Representation : Type -> Type -> Type where
+    Repr : .(abst : a) -> 
+           (concrete : b) -> 
+           (ap : (a -> a) -> (b -> b)) -> Representation a b
+  
+  applyRepr : (a -> a) -> Representation a b -> Representation a b
+  applyRepr f (Repr abst conc ap) = Repr (f abst) (ap f $ conc) ap
+  
+  infixr 5 |>
+  (|>) : (a -> a) -> Representation a b -> Representation a b
+  (|>) = applyRepr
   
 namespace Data.Quotient
- -- data Quotient : (t : Type) -> (relation : t -> t) -> (x : t) -> Type where
- --   MkQuotient : (x : t) -> Quotient t relation (relation x)
-  
-
-
-  NatMod : Nat -> Type
-  NatMod n = Subset Nat (\x => LTE x n)
-  
-  data Equi : Type -> Type where
-    MkEqui : (equi : t -> t -> Type) ->
-             (reflexive : (x : t) -> equi x x) ->
-             (symmetric : (x, y : t) -> equi x y -> equi y x) ->
-             (transitive : (x, y, z : t) -> equi x y -> equi y z -> equi x z) ->
-             Equi t 
-
-  rel : Equi t -> (t -> t -> Type)
-  rel (MkEqui rel _ _ _) = rel
-  
-  data Quotient : Equi t -> (t : Type)-> Type where
-    MkQuotient : (x : t) -> (equi : Equi t) -> (repr : Subset t ((rel equi) x)) -> Quotient equi t
+  data Equivalence : (t -> t -> Type) -> Type where
+    MkEqui : (rel : t -> t -> Type) ->
+             (refl : (x : t) -> rel x x) ->
+             (symm : (x, y : t) -> rel x y -> rel y x) ->
+             (trans : (x, y, z : t) -> rel x y -> rel y z -> rel x z) ->
+             Equivalence rel
  
-  withQuotient : Quotient rel t -> (t -> t) -> t
-  withQuotient (MkQuotient x rel repr) f = f (getWitness repr)
+  prf : Equivalence rel -> (t -> t -> Type)
+  prf {t} (MkEqui rel {t = t} _ _ _) = rel 
+
+  data Quotient : {rel : t -> t -> Type} -> Equivalence rel -> (t : Type) -> Type where
+    MkQuotient : (x : t) -> (y ** (prf rel) x y) -> Quotient rel t
   
+  infixl 5 //, .//
+  (//) : {rel : t -> t -> Type} -> (t : Type) -> Equivalence rel -> Type
+  t // rel = Quotient rel t
+  
+  data IntMod : Int -> Type where
+    MkIntMod  : {n : Int} -> Int -> IntMod n
+  
+  (.//) : {rel : t -> t -> Type} -> (f : t -> t) -> (e : Equivalence rel) -> Quotient e t -> Quotient e t
+  (.//) f (MkEqui rel refl symm trans) (MkQuotient x (repr ** prf)) = 
+    let y = f repr in
+    MkQuotient y (y ** refl y)
+  
+  Num (IntMod n) where
+    (MkIntMod x) + (MkIntMod y) = assert_total $ MkIntMod $ (x + y) `mod` n
+    (MkIntMod x) * (MkIntMod y) = assert_total $ MkIntMod $ (x * y) `mod` n
+    fromInteger a = assert_total $ MkIntMod ((fromInteger a) `mod` n)
+  
+  Neg (IntMod n) where
+    (MkIntMod x) - (MkIntMod y) = assert_total $ MkIntMod $ (x - y) `mod` n
+    abs (MkIntMod x) = assert_total $ MkIntMod $ (abs x) `mod` n
+    negate (MkIntMod x) = assert_total $ MkIntMod $ (n - x) `mod` n
+  
+  Eq (IntMod n) where
+    (MkIntMod x) == (MkIntMod y) = assert_total $ let xn = x `mod` n in
+                                   let yn = x `mod` n in
+                                   let xn' = if xn < 0 then xn + n else xn in
+                                   let yn' = if yn < 0 then yn + n else yn in
+                                   xn' == yn'
+  Ord (IntMod n) where
+    compare (MkIntMod x) (MkIntMod y) = assert_total $ let xn = x `mod` n in
+                                        let yn = x `mod` n in
+                                        let xn' = if xn < 0 then xn + n else xn in
+                                        let yn' = if yn < 0 then yn + n else yn in
+                                        compare xn' yn'
+  
+  MaxBound (IntMod n) where
+    maxBound = MkIntMod (n - 1)
+  
+  MinBound (IntMod n) where
+    minBound = MkIntMod 0
+
+  Enum (IntMod n) where
+    pred (MkIntMod x) = MkIntMod $ if x == n - 1 then 0 else x + 1
+    succ (MkIntMod x) = MkIntMod $ if x == 0 then n - 1 else x - 1
+    toNat (MkIntMod x) = toNat $ if x < 0 then x + n else x
+    fromNat k = MkIntMod $ assert_total (fromNat $ k `mod` (cast n))
+  
+  intModEq : IntMod j -> IntMod k -> Bool
+  intModEq {j} {k} (MkIntMod x) (MkIntMod y) = j == k && x == y
+  
+  intModCmp : IntMod j -> IntMod k -> Ordering
+  intModCmp {j} {k} (MkIntMod x) (MkIntMod y)  = case compare j k of
+    EQ => compare x y
+    r => r
+  
+  ||| Expands or contracts the modulus of an IntMod
+  intModExt : IntMod j -> IntMod k
+  intModExt {k} (MkIntMod x) = MkIntMod (assert_total $ x `mod` k)
+
 namespace Data.DateTime
+  Year : Type
+  Year = Int
+
   data Month = January
              | February
              | March
@@ -40,38 +139,186 @@ namespace Data.DateTime
              | November
              | December
   
-  Year : Type
-  Year = Int
-  
-  Hour : Int -> Type
-  Hour h = IntMod 24 h
-  
-  Minute : Int -> Type
-  Minute h = IntMod 60 h
-  
   numDays : Year -> Month -> Int
+  
+  Day : Year -> Month -> Type
+  Day y m = IntMod (numDays y m)
+
+  Hour : Type
+  Hour = IntMod 24
+  
+  Minute : Type
+  Minute = IntMod 60
   
   record DateTime where
     constructor MkDateTime
     year : Year
     month : Month
-    day : IntMod (numDays year month) n
-    hours : Hour h
-    minutes : Minute m
-    nanoseconds : Integer
+    day : Day year month
+    hour : Hour
+    minute : Minute
+    nanosecond : Integer
   
   record Date where
     constructor MkDate
     year : Year
     month : Month
-    day : IntMod (numDays year month) n
+    day : Day year month
   
   record Time where
     constructor MkTime
-    hours : Hour h
-    minutes : Minute m
-    nanoseconds : Integer
+    hours : Hour
+    minute : Minute
+    nanosecond : Integer
   
+  Eq Month where
+    January == January = True
+    February == February = True
+    March == March = True
+    April == April = True
+    May == May = True
+    June == June = True
+    July == July = True
+    August == August = True
+    September == September = True
+    October == October = True
+    November == November = True
+    December == December = True
+    _ == _ = False
+  
+  
+  Enum Month where
+    pred January = February
+    pred February = March
+    pred March = April
+    pred April = May
+    pred May = June
+    pred June = July
+    pred July = August
+    pred August = September
+    pred September = October
+    pred October = November
+    pred November = December
+    pred December = January
+    succ January = December
+    succ February = January
+    succ March = February
+    succ April = March
+    succ May = April
+    succ June = May
+    succ July = June
+    succ August = July
+    succ September = August
+    succ October = September
+    succ November = October
+    succ December = November
+    toNat January = 1
+    toNat February = 2
+    toNat March = 3
+    toNat April = 4
+    toNat May = 5
+    toNat June = 6
+    toNat July = 7
+    toNat August = 8
+    toNat September = 9
+    toNat October = 10
+    toNat November = 11
+    toNat December = 12
+    fromNat Z = January
+    fromNat (S Z) = January
+    fromNat (S (S Z)) = February
+    fromNat (S (S (S Z))) = March
+    fromNat (S (S (S (S Z)))) = April
+    fromNat (S (S (S (S (S Z))))) = May
+    fromNat (S (S (S (S (S (S Z)))))) = June
+    fromNat (S (S (S (S (S (S (S Z))))))) = July
+    fromNat (S (S (S (S (S (S (S (S Z)))))))) = August
+    fromNat (S (S (S (S (S (S (S (S (S Z))))))))) = September
+    fromNat (S (S (S (S (S (S (S (S (S (S Z)))))))))) = October
+    fromNat (S (S (S (S (S (S (S (S (S (S (S Z))))))))))) = November
+    fromNat (S (S (S (S (S (S (S (S (S (S (S (S Z)))))))))))) = December
+    fromNat _ = December
+  
+  Ord Month where
+    compare a b = compare (toNat a) (toNat b)
+  
+  Num Month where
+    x + y = fromNat $ assert_total $ ((toNat x) + (toNat y)) `mod` 12
+    x * y = fromNat $ assert_total $ ((toNat x) * (toNat y)) `mod` 12 
+    fromInteger x = fromNat (cast x)
+  
+  Neg Month where
+    x - y = fromInteger $ (cast $ toNat x) - (cast $ toNat y)
+    negate x = fromInteger $ 13 - (cast $ toNat x)
+    abs = id
+  
+  Eq Date where
+    (MkDate year_x month_x day_x) == (MkDate year_y month_y day_y) = 
+      case (year_x == year_y, month_x == month_y) of
+        (True, True) => intModEq day_x day_y
+        _ => False
+
+  Enum Date where
+  Ord Date where
+    compare a b = case compare (year a) (year b) of
+      EQ => case compare (month a) (month b) of
+        EQ => intModCmp (day a) (day b)
+        r => r
+      r => r
+
+  Num Date where
+    a + b = MkDate (year a + year b) (month a + month b) ((intModExt $ day a) + (intModExt $ day b))
+    a * b = MkDate (year a * year b) (month a * month b) ((intModExt $ day a) * (intModExt $ day b))
+    -- number of days since some epoch? Maybe 2000-01-01?
+    fromInteger a = assert_total $ let y = a `div` 365 in
+                    let d' = a - y in
+                    let leaps = 1 + (y `div` 4) in -- 2000 is a leap year
+                    let (m ** d) = go (fromInteger y) (d' - leaps) 1 in
+                    MkDate (fromInteger y) m d
+      where
+        go : (y : Year) -> Integer -> Nat -> (m : Month ** IntMod (numDays y m))
+        go y d m = if (fromInteger d) < (numDays y (fromNat m))
+                   then (fromNat m ** MkIntMod (fromInteger d))
+                   else let d' = (fromInteger d) - numDays y (fromNat m) in
+                        go y (cast d') (S m)
+
+  Neg Date where
+    negate (MkDate year month (MkIntMod x)) = 
+      let y = negate year in
+      let m = negate month in
+      let d = the (IntMod (numDays y m)) $ fromInteger (negate (cast x)) in
+      MkDate y m d
+    a - b = a + (negate b)
+    abs (MkDate year month day) = ?absdate_1
+  
+  Eq Time where
+  Enum Time where
+  Ord Time where
+  Num Time where
+  Neg Time where
+
+  Eq DateTime where
+  Enum DateTime where
+  Ord DateTime where
+  Num DateTime where
+  Neg DateTime where
+  
+  interface Temporal t where
+    years : t -> t -> Integer
+    months : t -> t -> Integer
+    days : t -> t -> Integer
+    hours : t -> t -> Integer
+    minutes : t -> t -> Integer
+    
+  seconds : Temporal t => t -> t -> Integer
+  seconds x y = (minutes x y) * 60
+  millis  : Temporal t => t -> t -> Integer
+  millis x y = (seconds x y) * 1000
+  micros  : Temporal t => t -> t -> Integer
+  micros x y = (millis x y) * 10
+  nanos   : Temporal t => t -> t -> Integer
+  nanos x y = (micros x y) * 10
+
 namespace Util
   chunks : Vect (n * m) t -> Vect n (Vect m t)
   chunks {n = n} {m = Z} xs = replicate n []
