@@ -1,323 +1,12 @@
+module K
+
 import Data.Vect
 import Data.Bits
 import Data.Morphisms
-  
-namespace Data.ZZ -- until this is moved to base  
-  ||| An int is either a positive nat, or the negated successor of a nat
-  ||| Zero is positive
-  data ZZ : Type where
-    Pos  : Nat -> ZZ
-    NegS : Nat -> ZZ
-  
-  Eq ZZ where
-    (Pos n) == (Pos m) = n == m
-    (NegS n) == (NegS m) = n == m
-    _ == _ = False
-  
-  Ord ZZ where
-    compare (Pos n) (Pos m) = compare n m
-    compare (NegS n) (NegS m) = compare m n
-    compare (Pos _) (NegS _) = GT
-    compare (NegS _) (Pos _) = LT
-  
-  Num ZZ where
-    a + b = ?plus_zz
-    a * b = ?mult_zz
-    fromInteger x = ?fromInt_zz
-  
-  Neg ZZ where
-    negate a = ?negate_zz
-    a - b = ?sub_zz
-    abs a = ?abs_zz
-  
-  
-  
-namespace Data.Representation
+import Representation
+import Quotient
+import DateTime
 
-  ||| A pair of an abstract, erased type and a core representation
-  ||| along with an application function that lifts any change to the 
-  ||| abstract type to the representation
-  data Representation : Type -> Type -> Type where
-    Repr : .(abst : a) -> 
-           (concrete : b) -> 
-           (ap : (a -> a) -> (b -> b)) -> Representation a b
-  
-  applyRepr : (a -> a) -> Representation a b -> Representation a b
-  applyRepr f (Repr abst conc ap) = Repr (f abst) (ap f $ conc) ap
-  
-  infixr 5 |>
-  (|>) : (a -> a) -> Representation a b -> Representation a b
-  (|>) = applyRepr
-  
-namespace Data.Quotient
-  data Equivalence : (t -> t -> Type) -> Type where
-    MkEqui : (rel : t -> t -> Type) ->
-             (refl : (x : t) -> rel x x) ->
-             (symm : (x, y : t) -> rel x y -> rel y x) ->
-             (trans : (x, y, z : t) -> rel x y -> rel y z -> rel x z) ->
-             Equivalence rel
- 
-  prf : Equivalence rel -> (t -> t -> Type)
-  prf {t} (MkEqui rel {t = t} _ _ _) = rel 
-
-  data Quotient : {rel : t -> t -> Type} -> Equivalence rel -> (t : Type) -> Type where
-    MkQuotient : (x : t) -> (y ** (prf rel) x y) -> Quotient rel t
-  
-  infixl 5 //, .//
-  (//) : {rel : t -> t -> Type} -> (t : Type) -> Equivalence rel -> Type
-  t // rel = Quotient rel t
-  
-  data IntMod : Int -> Type where
-    MkIntMod  : {n : Int} -> Int -> IntMod n
-  
-  (.//) : {rel : t -> t -> Type} -> (f : t -> t) -> (e : Equivalence rel) -> Quotient e t -> Quotient e t
-  (.//) f (MkEqui rel refl symm trans) (MkQuotient x (repr ** prf)) = 
-    let y = f repr in
-    MkQuotient y (y ** refl y)
-  
-  Num (IntMod n) where
-    (MkIntMod x) + (MkIntMod y) = assert_total $ MkIntMod $ (x + y) `mod` n
-    (MkIntMod x) * (MkIntMod y) = assert_total $ MkIntMod $ (x * y) `mod` n
-    fromInteger a = assert_total $ MkIntMod ((fromInteger a) `mod` n)
-  
-  Neg (IntMod n) where
-    (MkIntMod x) - (MkIntMod y) = assert_total $ MkIntMod $ (x - y) `mod` n
-    abs (MkIntMod x) = assert_total $ MkIntMod $ (abs x) `mod` n
-    negate (MkIntMod x) = assert_total $ MkIntMod $ (n - x) `mod` n
-  
-  Eq (IntMod n) where
-    (MkIntMod x) == (MkIntMod y) = assert_total $ let xn = x `mod` n in
-                                   let yn = x `mod` n in
-                                   let xn' = if xn < 0 then xn + n else xn in
-                                   let yn' = if yn < 0 then yn + n else yn in
-                                   xn' == yn'
-  Ord (IntMod n) where
-    compare (MkIntMod x) (MkIntMod y) = assert_total $ let xn = x `mod` n in
-                                        let yn = x `mod` n in
-                                        let xn' = if xn < 0 then xn + n else xn in
-                                        let yn' = if yn < 0 then yn + n else yn in
-                                        compare xn' yn'
-  
-  MaxBound (IntMod n) where
-    maxBound = MkIntMod (n - 1)
-  
-  MinBound (IntMod n) where
-    minBound = MkIntMod 0
-
-  Enum (IntMod n) where
-    pred (MkIntMod x) = MkIntMod $ if x == n - 1 then 0 else x + 1
-    succ (MkIntMod x) = MkIntMod $ if x == 0 then n - 1 else x - 1
-    toNat (MkIntMod x) = toNat $ if x < 0 then x + n else x
-    fromNat k = MkIntMod $ assert_total (fromNat $ k `mod` (cast n))
-  
-  intModEq : IntMod j -> IntMod k -> Bool
-  intModEq {j} {k} (MkIntMod x) (MkIntMod y) = j == k && x == y
-  
-  intModCmp : IntMod j -> IntMod k -> Ordering
-  intModCmp {j} {k} (MkIntMod x) (MkIntMod y)  = case compare j k of
-    EQ => compare x y
-    r => r
-  
-  ||| Expands or contracts the modulus of an IntMod
-  intModExt : IntMod j -> IntMod k
-  intModExt {k} (MkIntMod x) = MkIntMod (assert_total $ x `mod` k)
-
-namespace Data.DateTime
-  Year : Type
-  Year = Int
-
-  data Month = January
-             | February
-             | March
-             | April
-             | May
-             | June
-             | July
-             | August
-             | September
-             | October
-             | November
-             | December
-  
-  numDays : Year -> Month -> Int
-  
-  Day : Year -> Month -> Type
-  Day y m = IntMod (numDays y m)
-
-  Hour : Type
-  Hour = IntMod 24
-  
-  Minute : Type
-  Minute = IntMod 60
-  
-  record DateTime where
-    constructor MkDateTime
-    year : Year
-    month : Month
-    day : Day year month
-    hour : Hour
-    minute : Minute
-    nanosecond : Integer
-  
-  record Date where
-    constructor MkDate
-    year : Year
-    month : Month
-    day : Day year month
-  
-  record Time where
-    constructor MkTime
-    hours : Hour
-    minute : Minute
-    nanosecond : Integer
-  
-  Eq Month where
-    January == January = True
-    February == February = True
-    March == March = True
-    April == April = True
-    May == May = True
-    June == June = True
-    July == July = True
-    August == August = True
-    September == September = True
-    October == October = True
-    November == November = True
-    December == December = True
-    _ == _ = False
-  
-  
-  Enum Month where
-    pred January = February
-    pred February = March
-    pred March = April
-    pred April = May
-    pred May = June
-    pred June = July
-    pred July = August
-    pred August = September
-    pred September = October
-    pred October = November
-    pred November = December
-    pred December = January
-    succ January = December
-    succ February = January
-    succ March = February
-    succ April = March
-    succ May = April
-    succ June = May
-    succ July = June
-    succ August = July
-    succ September = August
-    succ October = September
-    succ November = October
-    succ December = November
-    toNat January = 1
-    toNat February = 2
-    toNat March = 3
-    toNat April = 4
-    toNat May = 5
-    toNat June = 6
-    toNat July = 7
-    toNat August = 8
-    toNat September = 9
-    toNat October = 10
-    toNat November = 11
-    toNat December = 12
-    fromNat Z = January
-    fromNat (S Z) = January
-    fromNat (S (S Z)) = February
-    fromNat (S (S (S Z))) = March
-    fromNat (S (S (S (S Z)))) = April
-    fromNat (S (S (S (S (S Z))))) = May
-    fromNat (S (S (S (S (S (S Z)))))) = June
-    fromNat (S (S (S (S (S (S (S Z))))))) = July
-    fromNat (S (S (S (S (S (S (S (S Z)))))))) = August
-    fromNat (S (S (S (S (S (S (S (S (S Z))))))))) = September
-    fromNat (S (S (S (S (S (S (S (S (S (S Z)))))))))) = October
-    fromNat (S (S (S (S (S (S (S (S (S (S (S Z))))))))))) = November
-    fromNat (S (S (S (S (S (S (S (S (S (S (S (S Z)))))))))))) = December
-    fromNat _ = December
-  
-  Ord Month where
-    compare a b = compare (toNat a) (toNat b)
-  
-  Num Month where
-    x + y = fromNat $ assert_total $ ((toNat x) + (toNat y)) `mod` 12
-    x * y = fromNat $ assert_total $ ((toNat x) * (toNat y)) `mod` 12 
-    fromInteger x = fromNat (cast x)
-  
-  Neg Month where
-    x - y = fromInteger $ (cast $ toNat x) - (cast $ toNat y)
-    negate x = fromInteger $ 13 - (cast $ toNat x)
-    abs = id
-  
-  Eq Date where
-    (MkDate year_x month_x day_x) == (MkDate year_y month_y day_y) = 
-      case (year_x == year_y, month_x == month_y) of
-        (True, True) => intModEq day_x day_y
-        _ => False
-
-  Enum Date where
-  Ord Date where
-    compare a b = case compare (year a) (year b) of
-      EQ => case compare (month a) (month b) of
-        EQ => intModCmp (day a) (day b)
-        r => r
-      r => r
-
-  Num Date where
-    a + b = MkDate (year a + year b) (month a + month b) ((intModExt $ day a) + (intModExt $ day b))
-    a * b = MkDate (year a * year b) (month a * month b) ((intModExt $ day a) * (intModExt $ day b))
-    -- number of days since some epoch? Maybe 2000-01-01?
-    fromInteger a = assert_total $ let y = a `div` 365 in
-                    let d' = a - y in
-                    let leaps = 1 + (y `div` 4) in -- 2000 is a leap year
-                    let (m ** d) = go (fromInteger y) (d' - leaps) 1 in
-                    MkDate (fromInteger y) m d
-      where
-        go : (y : Year) -> Integer -> Nat -> (m : Month ** IntMod (numDays y m))
-        go y d m = if (fromInteger d) < (numDays y (fromNat m))
-                   then (fromNat m ** MkIntMod (fromInteger d))
-                   else let d' = (fromInteger d) - numDays y (fromNat m) in
-                        go y (cast d') (S m)
-
-  Neg Date where
-    negate (MkDate year month (MkIntMod x)) = 
-      let y = negate year in
-      let m = negate month in
-      let d = the (IntMod (numDays y m)) $ fromInteger (negate (cast x)) in
-      MkDate y m d
-    a - b = a + (negate b)
-    abs (MkDate year month day) = ?absdate_1
-  
-  Eq Time where
-  Enum Time where
-  Ord Time where
-  Num Time where
-  Neg Time where
-
-  Eq DateTime where
-  Enum DateTime where
-  Ord DateTime where
-  Num DateTime where
-  Neg DateTime where
-  
-  interface Temporal t where
-    years : t -> t -> Integer
-    months : t -> t -> Integer
-    days : t -> t -> Integer
-    hours : t -> t -> Integer
-    minutes : t -> t -> Integer
-    
-  seconds : Temporal t => t -> t -> Integer
-  seconds x y = (minutes x y) * 60
-  millis  : Temporal t => t -> t -> Integer
-  millis x y = (seconds x y) * 1000
-  micros  : Temporal t => t -> t -> Integer
-  micros x y = (millis x y) * 10
-  nanos   : Temporal t => t -> t -> Integer
-  nanos x y = (micros x y) * 10
 
 namespace Util
   chunks : Vect (n * m) t -> Vect n (Vect m t)
@@ -327,6 +16,20 @@ namespace Util
     let head = take k xs in
     let tail = drop k xs in
     (x :: head) :: chunks tail
+  
+  --split : (m : Nat) -> Vect (m + n) t -> (Vect m t, Vect n t)
+  --split m v = (take m v, drop m v)
+  
+  split : (tk : Nat) -> Vect k t -> Maybe (x : Nat ** (Vect tk t, Vect x t))
+  split (S k) [] = Nothing
+  split (S k) (x::xs) = do
+    (c ** (head, tail)) <- split k xs
+    ?something
+  split Z v = Just (_ ** ([], v))
+  
+  -- if using pointers, all type safety goes out the window anyway
+  data TypedPtr : Type -> Type where
+    WrapPtr : Ptr -> TypedPtr t
   
 namespace Bits
 
@@ -358,6 +61,25 @@ namespace Bits
     let bytes = the (Vect 8 Bits64) $ map (prim__zextB8_B64) bytes in
     sum . map (uncurry prim__shlB64) . zip (map (*8) [0,1,2,3,4,5,6,7]) $ bytes
   
+  ||| Interpret a list of Bits8 as a string
+  asciiStr : List Bits8 -> String
+  asciiStr = pack . map (prim__intToChar . prim__zextB8_Int)
+  
+  ||| Read a pointer as a character array for a number of (ascii!) characters
+  readCStar : Ptr -> (len : Int) -> String
+  readCStar ptr len = asciiStr $ map (prim__peek8 prim__TheWorld ptr) [0, 8 .. 8*len]
+  
+  -- literally the same as for(char c=*ptr;c!=0;ptr++)
+  ||| Read an (ascii!) C string until the null terminator
+  readCStr : Ptr -> String
+  readCStr ptr = asciiStr (go ptr 0)
+    where
+      go : Ptr -> Int -> List Bits8
+      go ptr offset = 
+        case (prim__peek8 prim__TheWorld ptr offset) of
+          0 => []
+          b => b :: go ptr (offset + 1)
+  
 %lib C "kdb"
 namespace Raw
   
@@ -378,7 +100,7 @@ namespace Raw
   F = Double
   V = ()
   
-  data KPrimTy = KBool 
+  public export data KPrimTy = KBool 
               | KGuid 
               | KByte 
               | KShort 
@@ -399,7 +121,7 @@ namespace Raw
   
   __k_prim_ty : KPrimTy -> Type
   __k_prim_ty KBool = Bool
-  __k_prim_ty KGuid = Vect 4 Bits32
+  __k_prim_ty KGuid = Vect 16 Bits8
   __k_prim_ty KByte = Bits8
   __k_prim_ty KShort = Bits16
   __k_prim_ty KInt = Bits32
@@ -408,20 +130,59 @@ namespace Raw
   __k_prim_ty KFloat = Double
   __k_prim_ty KChar = Char
   __k_prim_ty KSym = String
-  __k_prim_ty KTimestamp = ?__k_prim_ty_rhs_11 -- could use ints?
-  __k_prim_ty KMonth = ?__k_prim_ty_rhs_12
-  __k_prim_ty KDate = Date
-  __k_prim_ty KDateTime = DateTime
-  __k_prim_ty KTimespan = ?__k_prim_ty_rhs_15
-  __k_prim_ty KMinute = ?__k_prim_ty_rhs_16
-  __k_prim_ty KSecond = ?__k_prim_ty_rhs_17
-  __k_prim_ty KTime = ?__k_prim_ty_rhs_18
+  __k_prim_ty KTimestamp = Bits64
+  __k_prim_ty KMonth = Bits32
+  __k_prim_ty KDate = Bits32
+  __k_prim_ty KDateTime = Double
+  __k_prim_ty KTimespan = Bits64
+  __k_prim_ty KMinute = Bits32
+  __k_prim_ty KSecond = Bits32
+  __k_prim_ty KTime = Bits32
+  
+  -- no signed bits8 type, so just use abs and compl later
+  __k_prim_repr : KPrimTy -> Bits8
+  __k_prim_repr KBool = 1
+  __k_prim_repr KGuid = 2
+  __k_prim_repr KByte = 4
+  __k_prim_repr KShort = 5
+  __k_prim_repr KInt = 6
+  __k_prim_repr KLong = 7
+  __k_prim_repr KReal = 8 -- unused
+  __k_prim_repr KFloat = 9
+  __k_prim_repr KChar = 10
+  __k_prim_repr KSym = 11
+  __k_prim_repr KTimestamp = 12
+  __k_prim_repr KMonth = 13
+  __k_prim_repr KDate = 14
+  __k_prim_repr KDateTime = 15
+  __k_prim_repr KTimespan = 16
+  __k_prim_repr KMinute = 17
+  __k_prim_repr KSecond = 18
+  __k_prim_repr KTime = 19
   
   __k_prim_sizeof : KPrimTy -> Nat
+  __k_prim_sizeof KBool = 1
+  __k_prim_sizeof KGuid = 16
+  __k_prim_sizeof KByte = 1
+  __k_prim_sizeof KShort = 2
+  __k_prim_sizeof KInt = 4
+  __k_prim_sizeof KLong = 8
+  __k_prim_sizeof KReal = 4
+  __k_prim_sizeof KFloat = 8
+  __k_prim_sizeof KChar = 1
+  __k_prim_sizeof KSym = 8 -- sizeof (char*)
+  __k_prim_sizeof KTimestamp = 8
+  __k_prim_sizeof KMonth = 4
+  __k_prim_sizeof KDate = 4
+  __k_prim_sizeof KDateTime = 8
+  __k_prim_sizeof KTimespan = 8
+  __k_prim_sizeof KMinute = 4
+  __k_prim_sizeof KSecond = 4
+  __k_prim_sizeof KTime = 4
 
-  data KRawTy = KAtom KPrimTy | KList KPrimTy
+  public export data KRawTy = KAtom KPrimTy | KList KPrimTy
   
-  data KTy = MkKTy KRawTy
+  public export data KTy = MkKTy KRawTy
            | KMixed
            | KDict
            | KTable
@@ -434,6 +195,8 @@ namespace Raw
     x => KUnknown
   
   __k_repr : KRawTy -> Bits8
+  __k_repr (KAtom x) = prim__complB8 $ __k_prim_repr x
+  __k_repr (KList x) = __k_prim_repr x
   
   __k_raw_repr : KPrimTy -> Type
   __k_raw_repr KBool = Bits8
@@ -465,10 +228,15 @@ namespace Raw
     MkF : Double -> KUnion ty
     MkS : String -> KUnion ty
     MkKPtr : Ptr -> KUnion ty
-    MkV : (len : Nat) -> Vect len Bits8 -> KUnion ty
+    --MkV : (len : Nat) -> Vect len Bits8 -> KUnion ty -- deprecated in favour of a shallow copy
+                                                       -- since vectors can be very large
+    MkV : (len : Nat) -> Ptr -> (offset : Int) -> KUnion ty -- use __read_bytes to access the union
   
   data K : Type where
     MkK : (m, a, t, u : Bits8) -> (r : Bits32) -> (union : KUnion (__k_type t)) -> K
+  
+  KPtr : Type 
+  KPtr = TypedPtr K
   
   __read_n_bytes : (n : Nat) -> Ptr -> Int -> Vect n Bits8
   __read_n_bytes Z ptr offset = []
@@ -503,8 +271,22 @@ namespace Raw
   __read_k_prim e KTime x@[a,b,c,d] = Just $ readBytesInt e x
   __read_k_prim _ _ _ = Nothing
   
-  __interpret_bytes : (t : KPrimTy) -> Vect n Bits8 -> Maybe (KUnion (MkKTy (KList t))) 
-  
+  ||| Desperately unsafe, uses lots of unsafe casts
+  __interpret_bytes : (t : KPrimTy) -> Vect n Bits8 -> Maybe (List (__k_prim_ty t))
+  __interpret_bytes t v = do
+      let size = __k_prim_sizeof t
+      (_ ** (chunk, rest)) <- split size v
+      results <- __interpret_bytes t (assert_smaller v rest)
+      let val = case size of
+        S$Z => really_believe_me chunk
+        S$S$Z => really_believe_me . readBytesShort LittleEndian $ chunk
+        S$S$S$S$Z => really_believe_me . readBytesInt LittleEndian $ chunk
+        S$S$S$S$S$S$S$S$Z => really_believe_me . readBytesLong LittleEndian $ chunk
+        S$S$S$S$S$S$S$S$S$S$S$S$S$S$S$S$Z => really_believe_me chunk -- this is actually just id
+        _ => really_believe_me chunk
+      return $ val :: results
+      
+
   __read_union : (e : Endian) -> (ty : KTy) -> Ptr -> Int -> Maybe (KUnion ty)
   __read_union e (MkKTy (KAtom x)) ptr offset = do
     let sz = __k_prim_sizeof x
@@ -531,17 +313,41 @@ namespace Raw
 
   __read_union e (MkKTy (KList x)) ptr offset = do
     let len = cast . prim__zextB64_BigInt $ prim__peek64 prim__TheWorld ptr offset
-    let bytes = __read_n_bytes len ptr (offset + 8)
-    return $ MkV len bytes
+    --let bytes = __read_n_bytes len ptr (offset + 8)
+    --return $ MkV len bytes
+    return $ MkV len ptr (offset + 8)
     
-  __read_union e KMixed ptr offset =  ?__read_union_rhs_2
-  __read_union e KDict ptr offset =  ?__read_union_rhs_3
-  __read_union e KTable ptr offset =  ?__read_union_rhs_4
+  -- a mixed list a list of kptrs
+  __read_union e KMixed ptr offset = do
+    let len = cast . prim__zextB64_BigInt $ prim__peek64 prim__TheWorld ptr offset
+    -- let bytes = __read_n_bytes len ptr (offset + 8)
+    -- return $ MkV len bytes
+    return $ MkV len ptr (offset + 8)
+  
+  -- a dictionary is a list of two kptrs - keys and values
+  __read_union e KDict ptr offset = do
+    -- guaranteed to be 2 long
+    -- let bytes = __read_n_bytes 2 ptr (offset + 8)
+    -- return $ MkV 2 bytes
+    return $ MkV 2 ptr (offset + 8)
+  
+  -- a table is a ptr to a dict
+  __read_union e KTable ptr offset = 
+    let kptr = prim__peekPtr prim__TheWorld ptr offset in
+    Just $ MkKPtr kptr 
+  -- a lambda is a char-array (type 100)
+  -- others are unknown
   __read_union e KFunc ptr offset =  ?__read_union_rhs_5
-  __read_union e KUnknown ptr offset =  ?__read_union_rhs_6 
 
-  __read_kptr : Endian -> Ptr -> Maybe K
-  __read_kptr e ptr = 
+  -- no clue here
+  __read_union e KUnknown ptr offset = Nothing
+
+  -- use this to just check the details of a given k struct
+  -- shallowly reads the kptr into a K type
+  -- does not inspect any sub-ptrs
+  -- does not check for correctness
+  __read_kptr : Endian -> KPtr -> Maybe K
+  __read_kptr e (WrapPtr ptr) = 
     let [m, a, t, u] = __read_n_bytes 4 ptr 0 in -- 4 bytes
     let r = Bits.readBytesInt e $ __read_n_bytes 4 ptr 4 in -- 4 bytes, fills the word
     let u' = __read_union e (__k_type t) ptr 8 in
@@ -549,4 +355,299 @@ namespace Raw
       Just union =>  Just (MkK m a t u r union)
       Nothing    =>  Nothing
     
-  __write_kptr : Endian -> Ptr -> K -> ()
+  -- shallowly writes the union to the ptr1
+  __write_union : Endian -> KPtr -> Int -> KUnion t -> ()
+  -- shallowly writes the K to the ptr
+  __write_kptr : Endian -> KPtr -> Int -> K -> ()
+  
+  -- these are idris-land bindings 
+  -- but they are shallow, and do no copying
+  
+  -- utility function to unwrap kptrs from ffi calls
+  kextr : IO Ptr -> KPtr
+  kextr = WrapPtr . unsafePerformIO
+  
+  -- gc functions
+  ||| call the kdb garbage collector
+  __k_m9 : () -> IO ()
+  __k_m9 () = foreign FFI_C "m9" (() -> IO ()) ()
+  
+  ||| decrement refcount
+  __k_r0 : KPtr -> IO V
+  __k_r0 (WrapPtr ptr) = (foreign FFI_C "r0" (Ptr -> IO ())) ptr
+
+  ||| increment refcount
+  __k_r1 : KPtr -> IO KPtr
+  __k_r1 (WrapPtr ptr) = map WrapPtr $ foreign FFI_C "r1" (Ptr -> IO Ptr) ptr
+
+  -- remote connection functions
+  
+  ||| connect with authentication and timeout
+  __k_khpun : (addr : S) -> (port : I) -> (auth : S) -> (timeout : I) -> IO I
+  __k_khpun = foreign FFI_C "khpun" (S -> I -> S -> I -> IO I) 
+  
+  ||| connect with authentication
+  __k_khpu : (addr : S) -> (port : I) -> (auth : S) -> IO I
+  __k_khpu = foreign FFI_C "khpu" (S -> I -> S -> IO I) 
+  
+  ||| just connect with an address and port
+  __k_khp : (addr : S) -> (port : I) -> IO I
+  __k_khp = foreign FFI_C "khp" (S -> I -> IO I)
+  
+  ||| close the socket obtained by the previous functions
+  __k_kclose : (handle : I) -> IO V
+  __k_kclose = foreign FFI_C "kclose" (I -> IO ())
+  
+  -- move to a kptr some how
+  -- expand the params as well
+  ||| send a string to the remote k server
+  ||| and wait for a response
+  ||| Actually a variadic function, this has been expanded to match on up to 8 arguments,
+  ||| since that is all that may be used in a q function anyway
+  __k_k : (handle : I) -> (src : S) -> (args : Vect n KPtr) -> {sm : LTE n 8} -> KPtr
+  __k_k handle src [] = kextr $  foreign FFI_C "k" (I -> S -> IO Ptr) 
+    {fty = FFun (C_IntT C_IntBits32) $ FFun (C_Str) $ FRet (C_Ptr)} handle src
+  __k_k handle src [(WrapPtr a)] = kextr $  foreign FFI_C "k" (I -> S -> Ptr -> IO Ptr) handle src a
+  __k_k handle src [(WrapPtr a), (WrapPtr b)] = kextr $ foreign FFI_C "k" (I -> S -> Ptr -> Ptr -> IO Ptr) handle src a b
+  __k_k handle src [(WrapPtr a), (WrapPtr b), (WrapPtr c)] = kextr $ foreign FFI_C "k" (I -> S -> Ptr -> Ptr -> Ptr -> IO Ptr) handle src a b c
+  __k_k handle src [(WrapPtr a), (WrapPtr b), (WrapPtr c), (WrapPtr d)] = kextr $ foreign FFI_C "k" (I -> S -> Ptr -> Ptr -> Ptr -> Ptr -> IO Ptr) handle src a b c d
+  __k_k handle src [(WrapPtr a), (WrapPtr b), (WrapPtr c), (WrapPtr d), (WrapPtr e)] = kextr $ foreign FFI_C "k" (I -> S -> Ptr -> Ptr -> Ptr -> Ptr -> Ptr -> IO Ptr) handle src a b c d e
+  __k_k handle src [(WrapPtr a), (WrapPtr b), (WrapPtr c), (WrapPtr d), (WrapPtr e), (WrapPtr f)] = kextr $ foreign FFI_C "k" (I -> S -> Ptr -> Ptr -> Ptr -> Ptr -> Ptr -> Ptr -> IO Ptr) handle src a b c d e f
+  __k_k handle src [(WrapPtr a), (WrapPtr b), (WrapPtr c), (WrapPtr d), (WrapPtr e), (WrapPtr f), (WrapPtr g)] = kextr $ foreign FFI_C "k" (I -> S -> Ptr -> Ptr -> Ptr -> Ptr -> Ptr -> Ptr -> Ptr -> IO Ptr) handle src a b c d e f g
+  __k_k handle src [(WrapPtr a), (WrapPtr b), (WrapPtr c), (WrapPtr d), (WrapPtr e), (WrapPtr f), (WrapPtr g), (WrapPtr h)] = kextr $ foreign FFI_C "k" (I -> S -> Ptr -> Ptr -> Ptr -> Ptr -> Ptr -> Ptr -> Ptr -> Ptr -> IO Ptr) handle src a b c d e f g h
+  
+  
+  ||| checks if a byte stream (type: 4) is a valid IPC stream or not
+  __k_okx : (stream : KPtr) -> I
+  __k_okx (WrapPtr ptr) = unsafePerformIO $ foreign FFI_C "okx" (Ptr -> IO I) ptr
+
+  -- usable only from a library loaded into kdb
+  -- ||| Remove callback
+  -- __k_sd0 : I -> IO V
+  -- __k_sd0 = foreign FFI_C "sd0" (I -> IO V)
+
+  -- ||| Add callback
+  -- __k_sd1 : I -> (I -> KPtr) -> IO KPtr
+  -- __k_sd1 = foreign FFI_C "sd1" (I -> (I -> KPtr) -> IO KPtr)
+ 
+  -- Variadic functions are not supported
+  -- ||| Dynamically link a function.
+  -- |||
+  -- ||| Takes a function taking n K objects, returning another K object, and builds it into a Q function
+  -- __k_dl : fty -> I -> KPtr
+
+  -- data conversion functions
+
+  ||| Year/month/day -> Int
+  __k_ymd : (years : I) -> (months : I) -> (days : I) -> I
+  __k_ymd years months days = unsafePerformIO $ foreign FFI_C "ymd" (I -> I -> I -> IO I) years months days
+
+  
+  -- data creation functions
+
+  ||| Create a date from an int
+  __k_dj : (days : I) -> I
+  __k_dj days = unsafePerformIO $ foreign FFI_C "dj" (I -> IO I) days
+
+ 
+  ||| Intern n chars from a string
+  __k_sn : S -> I -> S
+  __k_sn str count = unsafePerformIO $ foreign FFI_C "sn" (S -> I -> IO S) str count
+  
+  ||| Intern a string
+  __k_ss : S -> S
+  __k_ss str = unsafePerformIO $ foreign FFI_C "ss" (S -> IO S) str
+
+  ||| Create a timestamp
+  __k_ktj : (ty : I) -> (val : J) -> KPtr
+  __k_ktj ty val = WrapPtr . unsafePerformIO $ foreign FFI_C "ktj" (I -> J -> IO Ptr) ty val
+
+  ||| Create an atom of type ```ty```
+  __k_ka : (ty : I) -> KPtr
+  __k_ka ty = kextr $ foreign FFI_C "ka" (I -> IO Ptr) ty
+  
+  ||| Create a bool, C style
+  __k_kb : (val : I) -> KPtr
+  __k_kb val = kextr $ foreign FFI_C "kb" (I -> IO Ptr) val
+  
+  ||| Create a byte
+  __k_kg : I -> KPtr
+  __k_kg val = kextr $ foreign FFI_C "kg" (I -> IO Ptr) val
+
+  ||| Create a short
+  __k_kh : I -> KPtr
+  __k_kh val = kextr $ foreign FFI_C "kh" (I -> IO Ptr) val
+  
+  ||| Create an int
+  __k_ki : I -> KPtr
+  __k_ki val = kextr $ foreign FFI_C "ki" (I -> IO Ptr) val
+  
+  ||| Create a long
+  __k_kj : J -> KPtr
+  __k_kj val = kextr $ foreign FFI_C "kj" (J -> IO Ptr) val
+  
+  ||| Create a real
+  __k_ke : F -> KPtr
+  __k_ke val = kextr $ foreign FFI_C "ke" (F -> IO Ptr) val
+
+  ||| Create a float
+  __k_kf : F -> KPtr
+  __k_kf val = kextr $ foreign FFI_C "kf" (F -> IO Ptr) val
+  
+  ||| Create a char
+  __k_kc : I -> KPtr
+  __k_kc val = kextr $ foreign FFI_C "kc" (I -> IO Ptr) val
+  
+  ||| Create a symbol
+  __k_ks : S -> KPtr
+  __k_ks val = kextr $ foreign FFI_C "ks" (S -> IO Ptr) val
+  
+  ||| Create a date
+  __k_kd : I -> KPtr
+  __k_kd val = kextr $ foreign FFI_C "kd" (I -> IO Ptr) val
+  
+  ||| Create a datetime
+  __k_kz : F -> KPtr
+  __k_kz val = kextr $ foreign FFI_C "kz" (F -> IO Ptr) val
+  
+  ||| Create a time
+  __k_kt : I -> KPtr
+  __k_kt val = kextr $ foreign FFI_C "kt" (I -> IO Ptr) val
+
+  ||| Create a mixed list
+  ||| Actually a variadic function, this has been expanded to take up to 8 arguments
+  ||| Try to just create a mixed list of required length and join elements to it instead
+  -- what a monstrosity
+  __k_knk : (length : I) -> (values : Vect n KPtr) -> {sm : LTE n 8} -> KPtr
+  __k_knk n [] = kextr $ foreign FFI_C "knk" (I -> IO Ptr) n
+  __k_knk n [(WrapPtr a), (WrapPtr b)] = kextr $ foreign FFI_C "knk" (I -> Ptr -> IO Ptr) n a
+  __k_knk n [(WrapPtr a), (WrapPtr b), (WrapPtr c)] = kextr $ foreign FFI_C "knk" (I -> Ptr -> Ptr -> Ptr -> IO Ptr) n a b c
+  __k_knk n [(WrapPtr a), (WrapPtr b), (WrapPtr c), (WrapPtr d)] = kextr $ foreign FFI_C "knk" (I -> Ptr -> Ptr -> Ptr -> Ptr -> IO Ptr) n a b c d
+  __k_knk n [(WrapPtr a), (WrapPtr b), (WrapPtr c), (WrapPtr d), (WrapPtr e)] = kextr $ foreign FFI_C "knk" (I -> Ptr -> Ptr -> Ptr -> Ptr -> Ptr -> IO Ptr) n a b c d e
+  __k_knk n [(WrapPtr a), (WrapPtr b), (WrapPtr c), (WrapPtr d), (WrapPtr e), (WrapPtr f)] = kextr $ foreign FFI_C "knk" (I -> Ptr -> Ptr -> Ptr -> Ptr -> Ptr -> Ptr -> IO Ptr) n a b c d e f
+  __k_knk n [(WrapPtr a), (WrapPtr b), (WrapPtr c), (WrapPtr d), (WrapPtr e), (WrapPtr f), (WrapPtr g)] = kextr $ foreign FFI_C "knk" (I -> Ptr -> Ptr ->  Ptr -> Ptr -> Ptr -> Ptr ->Ptr -> IO Ptr) n a b c d e f g
+  __k_knk n [(WrapPtr a), (WrapPtr b), (WrapPtr c), (WrapPtr d), (WrapPtr e), (WrapPtr f), (WrapPtr g), (WrapPtr h)] = kextr $ foreign FFI_C "knk" (I -> Ptr ->  Ptr ->Ptr -> Ptr -> Ptr -> Ptr -> Ptr -> Ptr -> IO Ptr) n a b c d e f g h
+  __k_knk n [(WrapPtr a), (WrapPtr b), (WrapPtr c), (WrapPtr d), (WrapPtr e), (WrapPtr f), (WrapPtr g), (WrapPtr h), (WrapPtr i)] = kextr $ foreign FFI_C "knk" (I -> Ptr -> Ptr -> Ptr -> Ptr -> Ptr -> Ptr -> Ptr -> Ptr -> Ptr -> IO Ptr) n a b c d e f g h i
+
+  ||| Create a string
+  __k_kp : S -> KPtr
+  __k_kp val = kextr $ foreign FFI_C "kp" (S -> IO Ptr) val
+  
+  ||| Create a string with length n
+  __k_kpn : S -> J -> KPtr
+  __k_kpn val len = kextr $ foreign FFI_C "kpn" (S -> J -> IO Ptr) val len
+  
+  ||| Join an atom to a list
+  ||| First parameter is the list, second is a ptr to a primitive C type to add.
+  ||| This is unlikely to be used.
+  __k_ja : KPtr -> Ptr -> KPtr 
+  __k_ja (WrapPtr list) val = kextr $ foreign FFI_C "ja" (Ptr -> Ptr -> IO Ptr) list val
+  
+  ||| Join a string to a list
+  __k_js : KPtr -> S -> KPtr
+  __k_js (WrapPtr list) str = kextr $ foreign FFI_C "js" (Ptr -> S -> IO Ptr) list str
+  
+  ||| Join an arbitrary k object to a list
+  __k_jk : (list : KPtr) -> (obj : KPtr) -> KPtr
+  __k_jk (WrapPtr list) (WrapPtr obj) = kextr $ foreign FFI_C "jk" (Ptr -> Ptr -> IO Ptr) list obj
+  
+  ||| Join two lists
+  __k_jv : KPtr -> KPtr -> KPtr
+  __k_jv (WrapPtr head) (WrapPtr tail) = kextr $ foreign FFI_C "jv" (Ptr -> Ptr -> IO Ptr) head tail
+  
+  ||| Create a table from a dictionary (flip)
+  __k_xT : KPtr -> KPtr
+  __k_xT (WrapPtr dict) = kextr $ foreign FFI_C "xT" (Ptr -> IO Ptr) dict
+  
+  ||| Build a dictionary from two klists
+  __k_xD : KPtr -> KPtr -> KPtr
+  __k_xD (WrapPtr keys) (WrapPtr vals) = kextr $ foreign FFI_C "xD" (Ptr -> Ptr -> IO Ptr) keys vals
+  
+  ||| Create a simple table from a keyed table
+  __k_ktd : KPtr -> KPtr
+  __k_ktd (WrapPtr table) = kextr $ foreign FFI_C "ktd" (Ptr -> IO Ptr) table
+  
+  ||| Raise an error
+  __k_krr : S -> KPtr
+  __k_krr err = kextr $ foreign FFI_C "krr" (S -> IO Ptr) err
+  
+  ||| Raise a system error
+  __k_orr : S -> KPtr
+  __k_orr err = kextr $ foreign FFI_C "orr" (S -> IO Ptr) err
+  
+  ||| Apply the first parameter to the second parameter as a . function
+  ||| May not be present unless loaded as a library
+  __k_dot : KPtr -> KPtr -> KPtr
+  __k_dot (WrapPtr fn) (WrapPtr args) = kextr $ foreign FFI_C "dot" (Ptr -> Ptr -> IO Ptr) fn args
+  
+  ||| Serialise an object
+  ||| First parameter is capability
+  __k_b9 : I -> KPtr -> KPtr
+  __k_b9 cap (WrapPtr val) = kextr $ foreign FFI_C "b9" (I -> Ptr -> IO Ptr) cap val
+  
+  ||| Deserialise an object
+  __k_d9 : KPtr -> KPtr
+  __k_d9 (WrapPtr stream) = kextr $ foreign FFI_C "d9" (Ptr -> IO Ptr) stream
+
+-- Representations of q datatypes
+-- They are all just wrappers around k ptrs
+-- and should therefore hide their constructors
+
+public export data KAttrs = AttrS
+                          | AttrU
+                          | AttrP
+                          | AttrG
+  
+||| A K table is parametrised by its length, and the name and type of each of its columns, and 
+||| then by any attributes.
+export data KTable : List KAttrs -> Nat -> Vect n (String, KTy) -> Type where
+  MkKTable  : KPtr -> KTable attrs len cols
+  
+||| A K dictionary is a list of lists, each associated with a particular key.
+||| The key does not have to be any particular type.
+export data KDict : List KAttrs -> Vect n String -> Type where
+  MkKDict : KPtr -> KDict attrs keys
+  
+||| A K list is assumed to be a heterogeneous list; the actual kdb type of the list is determined at runtime.
+||| The type vector indexing the list must contain a type for each element in the list.
+||| Use [t, t, t, t, ..., t] to model a homogeneous list.
+export data KList : List KAttrs -> (cap : Nat) -> Either KTy (Vect n KTy) -> Type where
+  MkKList : KPtr -> KList attrs cap types
+  
+||| A K atom is a single value of the specified K primitive type.
+export data KAtom : List KAttrs -> KPrimTy -> Type where
+  MkKAtom : KPtr -> KAtom attrs ty
+  
+||| A K function is parametrised by the names and possible types of its arguments, and then its
+||| possible return types.
+export data KFunc : List KAttrs -> Vect n (String, List KTy) -> List KTy -> Type where
+  MkKFunc : KPtr -> KFunc attrs params res
+
+||| A predicate indicating that a given Idris type has a K representation.
+public export data KData : KTy -> Type where
+  
+||| Interpret a primitive K type as an Idris type.
+public export kPrimTy : KPrimTy -> Type  
+  
+||| Interpret a K type as an Idris type.
+public export kTy : KTy -> Type
+  
+||| Associate a K type with its representative Idris definition (wrapper).
+public export kRep : KTy -> Type
+kRep (MkKTy (KList t)) = Vect n (Raw.__k_prim_ty t)
+
+||| Extract an Idris value from a K value.
+||| Warning: this could be very slow.
+public export fromKVal : {ty : KTy} -> (kval : kRep ty) -> kTy ty
+  
+||| Builds an Idris value into its representative K type.
+||| This always involves a full copy of the data.
+export toKVal : KData kty -> kRep kty
+
+||| Build a new KAtom from an existing representative type.
+export mkAtom : (ty : KPrimTy) -> (kPrimTy ty) -> KAtom [] ty
+  
+export mkList : (listTy : Either KTy (Vect n KTy)) -> (len : Nat) -> KList [] len listTy
+  
+export mkDict : (keys : KList a n (Left (MkKTy (KAtom KSym)))) -> 
+                (vals : KList a' n tys) -> KDict [] (fromKVal keys)
