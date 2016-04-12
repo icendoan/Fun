@@ -1,0 +1,7 @@
+[package]
+authors = ["Caleb <icen@totally-legit.ru>"]
+name = "euler"
+version = "0.1.0"
+
+[dependencies]
+num = "0.1.31"
