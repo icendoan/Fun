@@ -1,9 +1,10 @@
 #![feature(test)]
 extern crate test;
-extern crate num;
+extern crate num; // for bigint
 fn main() {
     println!("p17: {}", p17());
     println!("p18: {}", p18());
+    println!("p19: {}", p19());
     println!("p67: {}", p67());
 }
 
@@ -470,4 +471,41 @@ fn p67() -> u64 {
 #[bench]
 fn bp67(x: &mut test::Bencher) {
     x.iter(p67)
+}
+
+fn p19() -> u64 {
+    let mut d: u64 = 1;
+    let mut wd: u64 = 0;
+    let mut m: u64 = 1;
+    let mut y: u64 = 1900;
+    fn nd(m: u64, y: u64) -> u64 {
+        match m {
+            1 |
+            4 |
+            6 |
+            9 |
+            11 => 30,
+            3 |
+            5 |
+            7 |
+            8 |
+            10 |
+            12=> 31,
+            2 if y % 400 == 0 || (y % 100 != 0 && y % 4 == 0) => 29,
+            2 => 28,
+            _ => 0
+        }
+    }
+
+    let mut ns: u64 = 0;
+
+    while y < 2001 {
+        d += 1;
+        wd += 1;
+        if wd == 7 { wd = 0; }
+        if d > nd(m,y) { d = 1; if m == 12 { m = 1; y += 1; } else {m += 1;}}
+        if d == 1 && wd == 6 { ns += 1; }
+    }
+
+    ns
 }

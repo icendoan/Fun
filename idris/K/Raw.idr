@@ -1,87 +1,7 @@
-module K
-
+module K.Raw
 import Data.Vect
-import Data.Bits
-import Data.Morphisms
-import Representation
-import Quotient
-import DateTime
-
-
-namespace Util
-  chunks : Vect (n * m) t -> Vect n (Vect m t)
-  chunks {n = n} {m = Z} xs = replicate n []
-  chunks {n = Z} {m = (S k)} xs = []
-  chunks {n = (S j)} {m = (S k)} (x :: xs) = 
-    let head = take k xs in
-    let tail = drop k xs in
-    (x :: head) :: chunks tail
-  
-  --split : (m : Nat) -> Vect (m + n) t -> (Vect m t, Vect n t)
-  --split m v = (take m v, drop m v)
-  
-  split : (tk : Nat) -> Vect k t -> Maybe (x : Nat ** (Vect tk t, Vect x t))
-  split (S k) [] = Nothing
-  split (S k) (x::xs) = do
-    (c ** (head, tail)) <- split k xs
-    ?something
-  split Z v = Just (_ ** ([], v))
-  
-  -- if using pointers, all type safety goes out the window anyway
-  data TypedPtr : Type -> Type where
-    WrapPtr : Ptr -> TypedPtr t
-  
-namespace Bits
-
-  ||| This is to be put into Data.Bits at some point
-  data Endian = BigEndian | LittleEndian
-  
-  readBytesShort : Endian -> Vect 2 Bits8 -> Bits16
-  readBytesShort BigEndian bytes = 
-    let [a, b] = map (prim__zextB8_B16) bytes in
-    prim__addB16 (prim__shlB16 a 8) b
-  readBytesShort LittleEndian bytes = 
-    let [a, b] = map (prim__zextB8_B16) bytes in
-    prim__addB16 (prim__shlB16 b 8) a
-
-  readBytesInt   : Endian -> Vect 4 Bits8 -> Bits32
-  readBytesInt BigEndian bytes = 
-    let [d, c, b, a] = map (prim__zextB8_B32) bytes in
-    (prim__shlB32 d 24) + (prim__shlB32 c 16) + (prim__shlB32 b 8) + a
-  readBytesInt LittleEndian bytes = 
-    let [a, b, c, d] = map (prim__zextB8_B32) bytes in
-    (prim__shlB32 d 24) + (prim__shlB32 c 16) + (prim__shlB32 b 8) + a
-
-  readBytesLong  : Endian -> Vect 8 Bits8 -> Bits64
-  readBytesLong BigEndian bytes = 
-    let bytes = the (Vect 8 Bits64) $ map (prim__zextB8_B64) bytes in
-    sum . map (uncurry prim__shlB64) . zip (map (*8) [7,6,5,4,3,2,1,0]) $ bytes
-
-  readBytesLong LittleEndian bytes = 
-    let bytes = the (Vect 8 Bits64) $ map (prim__zextB8_B64) bytes in
-    sum . map (uncurry prim__shlB64) . zip (map (*8) [0,1,2,3,4,5,6,7]) $ bytes
-  
-  ||| Interpret a list of Bits8 as a string
-  asciiStr : List Bits8 -> String
-  asciiStr = pack . map (prim__intToChar . prim__zextB8_Int)
-  
-  ||| Read a pointer as a character array for a number of (ascii!) characters
-  readCStar : Ptr -> (len : Int) -> String
-  readCStar ptr len = asciiStr $ map (prim__peek8 prim__TheWorld ptr) [0, 8 .. 8*len]
-  
-  -- literally the same as for(char c=*ptr;c!=0;ptr++)
-  ||| Read an (ascii!) C string until the null terminator
-  readCStr : Ptr -> String
-  readCStr ptr = asciiStr (go ptr 0)
-    where
-      go : Ptr -> Int -> List Bits8
-      go ptr offset = 
-        case (prim__peek8 prim__TheWorld ptr offset) of
-          0 => []
-          b => b :: go ptr (offset + 1)
-  
+import Util
 %lib C "kdb"
-namespace Raw
   
   S : Type 
   C : Type 
@@ -100,7 +20,7 @@ namespace Raw
   F = Double
   V = ()
   
-  public export data KPrimTy = KBool 
+  data KPrimTy = KBool 
               | KGuid 
               | KByte 
               | KShort 
@@ -180,9 +100,9 @@ namespace Raw
   __k_prim_sizeof KSecond = 4
   __k_prim_sizeof KTime = 4
 
-  public export data KRawTy = KAtom KPrimTy | KList KPrimTy
+  data KRawTy = KAtom KPrimTy | KList KPrimTy
   
-  public export data KTy = MkKTy KRawTy
+  data KTy = MkKTy KRawTy
            | KMixed
            | KDict
            | KTable
@@ -236,7 +156,7 @@ namespace Raw
     MkK : (m, a, t, u : Bits8) -> (r : Bits32) -> (union : KUnion (__k_type t)) -> K
   
   KPtr : Type 
-  KPtr = TypedPtr K
+  KPtr = Util.TypedPtr K
   
   __read_n_bytes : (n : Nat) -> Ptr -> Int -> Vect n Bits8
   __read_n_bytes Z ptr offset = []
@@ -250,48 +170,56 @@ namespace Raw
     let r = (prim__poke8 prim__TheWorld ptr offset x) in
     min r (__write_bytes ptr (offset + 1) (y :: xs))
   
-  __read_k_prim : (e : Endian) -> (t : KPrimTy) -> Vect n Bits8 -> Maybe $ __k_raw_repr t
-  __read_k_prim e KBool [x] = Just x
-  __read_k_prim e KGuid x {n = S$S$S$S$S$S$S$S$S$S$S$S$S$S$S$S$Z} = Just x
-  __read_k_prim e KByte [x] = Just x
-  __read_k_prim e KShort x@[a,b] = Just $ readBytesShort e x
-  __read_k_prim e KInt x@[a,b,c,d] = Just $ readBytesInt e x
-  __read_k_prim e KLong x@[a,b,c,d,e',f,g,h] = Just $ readBytesLong e x
-  __read_k_prim e KReal x@[a,b,c,d,e',f,g,h] = Just $ believe_me $ readBytesLong e x
-  __read_k_prim e KFloat x@[a,b,c,d,e',f,g,h] = Just $ believe_me $ readBytesLong e x
-  __read_k_prim e KChar [x] = Just x
-  __read_k_prim e KSym xs = Just $ pack $ map (chr . prim__zextB8_Int) xs
-  __read_k_prim e KTimestamp x@[a,b,c,d,e',f,g,h] = Just $ readBytesLong e x
-  __read_k_prim e KTimespan x@[a,b,c,d,e',f,g,h] = Just $ readBytesLong e x
-  __read_k_prim e KMonth x@[a,b,c,d] = Just $ readBytesInt e x
-  __read_k_prim e KDate x@[a,b,c,d] = Just $ readBytesInt e x
-  __read_k_prim e KDateTime x@[a,b,c,d,e',f,g,h] = Just $ believe_me $ readBytesLong e x
-  __read_k_prim e KMinute x@[a,b,c,d] = Just $ readBytesInt e x
-  __read_k_prim e KSecond x@[a,b,c,d] = Just $ readBytesInt e x
-  __read_k_prim e KTime x@[a,b,c,d] = Just $ readBytesInt e x
-  __read_k_prim _ _ _ = Nothing
+  __read_k_prim : (t : KPrimTy) -> Vect n Bits8 -> Maybe $ __k_raw_repr t
+  __read_k_prim KBool [x] = Just x
+  __read_k_prim KGuid x {n = S$S$S$S$S$S$S$S$S$S$S$S$S$S$S$S$Z} = Just x
+  __read_k_prim KByte [x] = Just x
+  __read_k_prim KShort x@[a,b] = Just $ readBytesShort x
+  __read_k_prim KInt x@[a,b,c,d] = Just $ readBytesInt x
+  __read_k_prim KLong x@[a,b,c,d,e',f,g,h] = Just $ readBytesLong x
+  __read_k_prim KReal x@[a,b,c,d,e',f,g,h] = Just $ believe_me $ readBytesLong x
+  __read_k_prim KFloat x@[a,b,c,d,e',f,g,h] = Just $ believe_me $ readBytesLong x
+  __read_k_prim KChar [x] = Just x
+  __read_k_prim KSym xs = Just $ pack $ map (chr . prim__zextB8_Int) xs
+  __read_k_prim KTimestamp x@[a,b,c,d,e',f,g,h] = Just $ readBytesLong x
+  __read_k_prim KTimespan x@[a,b,c,d,e',f,g,h] = Just $ readBytesLong x
+  __read_k_prim KMonth x@[a,b,c,d] = Just $ readBytesInt x
+  __read_k_prim KDate x@[a,b,c,d] = Just $ readBytesInt x
+  __read_k_prim KDateTime x@[a,b,c,d,e',f,g,h] = Just $ believe_me $ readBytesLong x
+  __read_k_prim KMinute x@[a,b,c,d] = Just $ readBytesInt x
+  __read_k_prim KSecond x@[a,b,c,d] = Just $ readBytesInt x
+  __read_k_prim KTime x@[a,b,c,d] = Just $ readBytesInt x
+  __read_k_prim _ _ = Nothing
   
   ||| Desperately unsafe, uses lots of unsafe casts
+  --__interpret_bytes : (t : KPrimTy) -> Vect n Bits8 -> Maybe (List (__k_prim_ty t))
+  --__interpret_bytes t v = do
+  --    let size = __k_prim_sizeof t
+  --    (_ ** (chunk, rest)) <- split size v
+  --    results <- __interpret_bytes t (assert_smaller v rest)
+  --    let val = case size of
+  --      S$Z => really_believe_me chunk
+  --      S$S$Z => really_believe_me . readBytesShort LittleEndian $ chunk
+  --      S$S$S$S$Z => really_believe_me . readBytesInt LittleEndian $ chunk
+  --      S$S$S$S$S$S$S$S$Z => really_believe_me . readBytesLong LittleEndian $ chunk
+  --      S$S$S$S$S$S$S$S$S$S$S$S$S$S$S$S$Z => really_believe_me chunk -- this is actually just id
+  --      _ => really_believe_me chunk
+  --    return $ val :: results
+  
   __interpret_bytes : (t : KPrimTy) -> Vect n Bits8 -> Maybe (List (__k_prim_ty t))
-  __interpret_bytes t v = do
-      let size = __k_prim_sizeof t
-      (_ ** (chunk, rest)) <- split size v
-      results <- __interpret_bytes t (assert_smaller v rest)
-      let val = case size of
-        S$Z => really_believe_me chunk
-        S$S$Z => really_believe_me . readBytesShort LittleEndian $ chunk
-        S$S$S$S$Z => really_believe_me . readBytesInt LittleEndian $ chunk
-        S$S$S$S$S$S$S$S$Z => really_believe_me . readBytesLong LittleEndian $ chunk
-        S$S$S$S$S$S$S$S$S$S$S$S$S$S$S$S$Z => really_believe_me chunk -- this is actually just id
-        _ => really_believe_me chunk
-      return $ val :: results
+  __interpret_bytes {n} t v =
+    let size = __k_prim_sizeof t in
+    case 
+    let (head, tail) = split size v in
+    ?rest
+      
       
 
-  __read_union : (e : Endian) -> (ty : KTy) -> Ptr -> Int -> Maybe (KUnion ty)
-  __read_union e (MkKTy (KAtom x)) ptr offset = do
+  __read_union : (ty : KTy) -> Ptr -> Int -> Maybe (KUnion ty)
+  __read_union (MkKTy (KAtom x)) ptr offset = do
     let sz = __k_prim_sizeof x
     let bytes = __read_n_bytes sz ptr offset
-    val <- __read_k_prim e x bytes
+    val <- __read_k_prim x bytes
     case x of
       KBool => Just $ MkG val
       KByte => Just $ MkG val
@@ -346,11 +274,11 @@ namespace Raw
   -- shallowly reads the kptr into a K type
   -- does not inspect any sub-ptrs
   -- does not check for correctness
-  __read_kptr : Endian -> KPtr -> Maybe K
-  __read_kptr e (WrapPtr ptr) = 
+  __read_kptr : KPtr -> Maybe K
+  __read_kptr (WrapPtr ptr) = 
     let [m, a, t, u] = __read_n_bytes 4 ptr 0 in -- 4 bytes
-    let r = Bits.readBytesInt e $ __read_n_bytes 4 ptr 4 in -- 4 bytes, fills the word
-    let u' = __read_union e (__k_type t) ptr 8 in
+    let r = Bits.readBytesInt $ __read_n_bytes 4 ptr 4 in -- 4 bytes, fills the word
+    let u' = __read_union (__k_type t) ptr 8 in
     case u' of
       Just union =>  Just (MkK m a t u r union)
       Nothing    =>  Nothing
@@ -588,66 +516,3 @@ namespace Raw
   ||| Deserialise an object
   __k_d9 : KPtr -> KPtr
   __k_d9 (WrapPtr stream) = kextr $ foreign FFI_C "d9" (Ptr -> IO Ptr) stream
-
--- Representations of q datatypes
--- They are all just wrappers around k ptrs
--- and should therefore hide their constructors
-
-public export data KAttrs = AttrS
-                          | AttrU
-                          | AttrP
-                          | AttrG
-  
-||| A K table is parametrised by its length, and the name and type of each of its columns, and 
-||| then by any attributes.
-export data KTable : List KAttrs -> Nat -> Vect n (String, KTy) -> Type where
-  MkKTable  : KPtr -> KTable attrs len cols
-  
-||| A K dictionary is a list of lists, each associated with a particular key.
-||| The key does not have to be any particular type.
-export data KDict : List KAttrs -> Vect n String -> Type where
-  MkKDict : KPtr -> KDict attrs keys
-  
-||| A K list is assumed to be a heterogeneous list; the actual kdb type of the list is determined at runtime.
-||| The type vector indexing the list must contain a type for each element in the list.
-||| Use [t, t, t, t, ..., t] to model a homogeneous list.
-export data KList : List KAttrs -> (cap : Nat) -> Either KTy (Vect n KTy) -> Type where
-  MkKList : KPtr -> KList attrs cap types
-  
-||| A K atom is a single value of the specified K primitive type.
-export data KAtom : List KAttrs -> KPrimTy -> Type where
-  MkKAtom : KPtr -> KAtom attrs ty
-  
-||| A K function is parametrised by the names and possible types of its arguments, and then its
-||| possible return types.
-export data KFunc : List KAttrs -> Vect n (String, List KTy) -> List KTy -> Type where
-  MkKFunc : KPtr -> KFunc attrs params res
-
-||| A predicate indicating that a given Idris type has a K representation.
-public export data KData : KTy -> Type where
-  
-||| Interpret a primitive K type as an Idris type.
-public export kPrimTy : KPrimTy -> Type  
-  
-||| Interpret a K type as an Idris type.
-public export kTy : KTy -> Type
-  
-||| Associate a K type with its representative Idris definition (wrapper).
-public export kRep : KTy -> Type
-kRep (MkKTy (KList t)) = Vect n (Raw.__k_prim_ty t)
-
-||| Extract an Idris value from a K value.
-||| Warning: this could be very slow.
-public export fromKVal : {ty : KTy} -> (kval : kRep ty) -> kTy ty
-  
-||| Builds an Idris value into its representative K type.
-||| This always involves a full copy of the data.
-export toKVal : KData kty -> kRep kty
-
-||| Build a new KAtom from an existing representative type.
-export mkAtom : (ty : KPrimTy) -> (kPrimTy ty) -> KAtom [] ty
-  
-export mkList : (listTy : Either KTy (Vect n KTy)) -> (len : Nat) -> KList [] len listTy
-  
-export mkDict : (keys : KList a n (Left (MkKTy (KAtom KSym)))) -> 
-                (vals : KList a' n tys) -> KDict [] (fromKVal keys)

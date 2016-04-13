@@ -1,5 +1,5 @@
 module Quotient 
-%access public export 
+%access public export  -- replace this at some point
 
 data Equivalence : (t -> t -> Type) -> Type where
   MkEqui : (rel : t -> t -> Type) ->
