@@ -589,7 +589,7 @@ fn p22() -> u64 {
     let mut sum = 0;
     for (i,n) in ns.into_iter().enumerate() {
         let sc = s(n);
-        sum += (i as u64) * sc;
+        sum += (1 + i as u64) * sc;
     }
 
     sum
