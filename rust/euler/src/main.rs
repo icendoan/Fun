@@ -5,6 +5,9 @@ fn main() {
     println!("p17: {}", p17());
     println!("p18: {}", p18());
     println!("p19: {}", p19());
+    println!("p20: {}", p20());
+    println!("p21: {}", p21()); // slooooow
+    println!("p22: {}", p22());
     println!("p67: {}", p67());
 }
 
@@ -474,25 +477,16 @@ fn bp67(x: &mut test::Bencher) {
 }
 
 fn p19() -> u64 {
-    let mut d: u64 = 1;
-    let mut wd: u64 = 0;
-    let mut m: u64 = 1;
-    let mut y: u64 = 1900;
+    // monday = 1
+    // => sunday = 0
+    let mut d: u64 = 2; // 1901-01-01 was a Tuesday
+    let mut m: u64 = 0;
+    let mut y: u64 = 1901;
     fn nd(m: u64, y: u64) -> u64 {
         match m {
-            1 |
-            4 |
-            6 |
-            9 |
-            11 => 30,
-            3 |
-            5 |
-            7 |
-            8 |
-            10 |
-            12=> 31,
-            2 if y % 400 == 0 || (y % 100 != 0 && y % 4 == 0) => 29,
-            2 => 28,
+            4 | 6 | 9 | 11 => 2,
+            1 | 3 | 5 | 7 | 8 | 10 | 12=> 3,
+            2 if y % 400 == 0 || (y % 100 != 0 && y % 4 == 0) => 1,
             _ => 0
         }
     }
@@ -500,12 +494,103 @@ fn p19() -> u64 {
     let mut ns: u64 = 0;
 
     while y < 2001 {
-        d += 1;
-        wd += 1;
-        if wd == 7 { wd = 0; }
-        if d > nd(m,y) { d = 1; if m == 12 { m = 1; y += 1; } else {m += 1;}}
-        if d == 1 && wd == 6 { ns += 1; }
+        m += 1;
+        if m == 13 {
+            m = 1;
+            y += 1;
+        }
+        d = (d + nd(m,y)) % 7;
+        if d == 0 { ns += 1; }
     }
 
     ns
+}
+
+fn p20() -> u64 {
+    fn fac(b: u64) -> num::BigInt {
+        let mut r = num::BigInt::from(1);
+        for x in 1..b+1 {
+            r = r * num::BigInt::from(x);
+        }
+        r
+    }
+    fn ci(c: char) -> u64 {
+        match c {
+            '1' => 1,
+            '2' => 2,
+            '3' => 3,
+            '4' => 4,
+            '5' => 5,
+            '6' => 6,
+            '7' => 7,
+            '8' => 8,
+            '9' => 9,
+            _ => 0
+        }
+    }
+    
+    let num = fac(100);
+    let digits = num.to_str_radix(10);
+    digits.chars().map(ci).fold(0, |x, acc| x + acc)
+}
+
+fn p21() -> u64 {
+    // yay for O(n²) algorithms!
+    fn d(x: u64) -> u64 {
+        let mut s = 0;
+        for i in 1..x {
+            if x % i == 0 {
+                s += i;
+            }
+        }
+
+        s
+    }
+    
+    let mut nums = [0;10000];
+    let mut sum = 0;
+
+    for i in 2..10000 {
+        nums[i] = d(i as u64);
+    }
+
+    for i in 0..10000 { // not sure if there is a cleverer way than O(n²) search
+        for n in 0..10000 {
+            if nums[n] == (i as u64) && nums[i] == (n as u64) && n != i {
+                sum += i as u64;
+            }
+        }
+    }
+
+    sum
+}
+
+fn p22() -> u64 {
+    use std::fs;
+    use std::io::*;
+    
+    fn r() -> Vec<String> {
+        let mut s = String::with_capacity(50000);
+
+        let mut f = fs::File::open("./p022_names.txt").unwrap();
+        let _ = f.read_to_string(&mut s);
+        s.split(',').map(|s| s.chars().filter(|c| c.is_alphabetic()).collect()).collect()
+    }
+
+    fn s(n: &str) -> u64 {
+        n.chars().map(|c| 1 + (c as u64) - ('A' as u64)).fold(0, |x, acc| x + acc) as u64
+    }
+
+    let mut n = r();
+
+    let ns = &mut n;
+
+    ns.sort();
+    let mut sum = 0;
+    for (i,n) in ns.into_iter().enumerate() {
+        let sc = s(n);
+        sum += (i as u64) * sc;
+    }
+
+    sum
 }
