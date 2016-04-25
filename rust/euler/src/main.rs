@@ -8,6 +8,7 @@ fn main() {
     println!("p20: {}", p20());
     println!("p21: {}", p21()); // slooooow
     println!("p22: {}", p22());
+    println!("p23: {}", p23());
     println!("p67: {}", p67());
 }
 
@@ -593,4 +594,41 @@ fn p22() -> u64 {
     }
 
     sum
+}
+
+fn p23() -> u64 {
+    let mut ab = [false;28124];
+    fn d(x: u64) -> u64 {
+        let mut s = 0;
+        for i in 1..x {
+            if x % i == 0 {
+                s += i;
+            }
+        }
+
+        s
+    }
+    
+    // compile an array of abundant numbers
+    for i in 0..28124 {
+        ab[i] = (i as u64) < d(i as u64);
+    }
+
+    for i in 0..100 {
+        if ab[i] {
+            println!("{} is abundant", i);
+        }
+    }
+
+    let mut sum = 0;
+
+    for i in 2..28124 {
+        for x in 2..i {
+            if ab[x] && ab[i - x] {
+                sum += i as u64;
+            }
+        }
+    }
+
+    sum - ((28123) * (28124) / 2)
 }
