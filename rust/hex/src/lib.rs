@@ -10,16 +10,42 @@ use gfx::*;
 use config::*;
 use util::*;
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, VecDeque};
 use std::ops::{Index, IndexMut};
 
-pub struct Map
+pub struct Game
+{
+    map: Map,
+    map_buffer: Map,
+    players: Vec<PlayerInfo>,
+    ticksize: u64,
+    effects: VecDeque<Message>,
+    msg_queue: VecDeque<Message>
+}
+
+struct PlayerInfo
+{
+    
+    
+}
+
+struct Player
+{
+    id: Id,
+    map: Map,
+    map_buffer: Map,
+    effects: VecDeque<Message>,
+    msg_queue: VecDeque<Message>,
+    
+}
+
+struct Map
 {
     board : BTreeMap<Hex, Tile>, // index the map by its coordinates via a hashmap
     dimensions : (usize, usize),
 }
 
-pub struct Unit
+struct Unit
 {
     id : Id, // unique id!
     size : Size, // raw size of the unit
@@ -37,7 +63,7 @@ pub struct Unit
     def_modifier : Defence,
 }
 
-pub struct Tile
+struct Tile
 {
     terrain : Terrain,
     coords : Hex,
@@ -48,25 +74,25 @@ pub struct Tile
     units : Vec<Unit>, // tiles own the units on them?
     goods : Vec<(Product, Size)>, // goods currently in the local stockpile
     exports : Vec<(Hex, Product, Size, Priority)>, // exports to neighbouring hexes
-    movements : // for each neighbouring hex, how to move there - roads, rail, pipes, boat, etc BTreeMap seems natural, but probably overkill
+    movements : [Movement; 6] // for each neighbouring hex, how to move there - roads, rail, pipes, boat, etc (start at north, move clockwise)
 }
 
 index_impl!{Vec<Unit>,Id,Unit}
 
-pub fn build_map(radius : usize) -> Map
+fn build_map(radius : usize) -> Map
 {
 }
 
 impl Map
 {
-    pub fn get_tile(&self, hex : &Hex) -> &Tile
+    fn get_tile(&self, hex : &Hex) -> &Tile
     {
         self.board.get(hex).unwrap()
     }
 
     // the map should always keep ownership of the tile!
     // use a mutable reference instead
-    pub fn get_tile_mut(&mut self, hex : &Hex) -> &mut Tile
+    fn get_tile_mut(&mut self, hex : &Hex) -> &mut Tile
     {
         self.board.get_mut(hex).unwrap()
     }
@@ -94,7 +120,7 @@ impl Tile
     // tries to move the unit to the tile specified by hex
     // returns the number of ticks until the unit reaches the next
     // fails with a HexError if there is no route, or unit cannot move, etc
-    pub fn move_unit(&mut self, unit : Id, to : Hex) -> Result<Size,HexError>
+    fn move_unit(&mut self, unit : Id, to : Hex) -> Result<Size,HexError>
     {
         if !self.units.contains(unit)
             { return Err(HexError::Minor(format!("No unit with Id: {:?} exists in {:?}", unit, self.coords))) }
@@ -108,8 +134,7 @@ impl Tile
         }
     }
 
-    // tries to add the 
-    pub fn add_export(&mut self, product : Product, amount : Size, priority : Priority, to : Hex) -> Result<Size, HexError>
+    fn add_export(&mut self, product : Product, amount : Size, priority : Priority, to : Hex) -> Result<Size, HexError>
     {
         if self.is_neighbour(to)
         {
