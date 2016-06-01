@@ -3,7 +3,8 @@ use std::io::{self, BufRead};
 
 extern crate rand;
 
-fn main() {
+fn main()
+{
     println!("Hello, world!");
 }
 
@@ -26,16 +27,21 @@ struct Ptr
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
-enum D { U, R, D, L }
+enum D
+{
+    U,
+    R,
+    D,
+    L,
+}
 
 fn n() -> P
 {
-    P
-    {
+    P {
         w: 80,
         f: Vec::new(),
         s: VecDeque::new(),
-        ptrs: Vec::new()
+        ptrs: Vec::new(),
     }
 }
 
@@ -289,6 +295,8 @@ fn e(p: &mut P, ptr: &mut Ptr) -> bool
         '8' => ptr.s.push_front(8),
         '9' => ptr.s.push_front(9),
         // new additions
+        // pop top number from the stack, switch topology to the surface of that genus.
+        't' =>{},
         _ => ()
     }
 

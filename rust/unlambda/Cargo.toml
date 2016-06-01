@@ -1,0 +1,6 @@
+[package]
+name = "unlambda"
+version = "0.1.0"
+authors = ["Caleb Quilley <cquilley@tylercapital.co.uk>"]
+
+[dependencies]
