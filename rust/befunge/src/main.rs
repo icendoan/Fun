@@ -3,7 +3,8 @@ use std::io::BufRead;
 
 extern crate rand;
 
-fn main() {
+fn main()
+{
     println!("Hello, world!");
 }
 
@@ -13,7 +14,7 @@ struct P
     f: Vec<Vec<char>>,
     s: VecDeque<i64>,
     sm: bool,
-    ptrs: Vec<Ptr>
+    ptrs: Vec<Ptr>,
 }
 
 struct Ptr
@@ -25,16 +26,21 @@ struct Ptr
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
-enum D { U, R, D, L }
+enum D
+{
+    U,
+    R,
+    D,
+    L,
+}
 
 fn n() -> P
 {
-    P
-    {
+    P {
         w: 80,
         f: Vec::new(),
         s: VecDeque::new(),
-        ptrs: Vec::new()
+        ptrs: Vec::new(),
     }
 }
 
@@ -46,14 +52,14 @@ fn w(p: &mut P, s: &str)
         for v in &mut p.f
         {
             v.reserve(c.len() - p.w);
-            v.extend((0..c.len() - p.w).map(||' '));
+            v.extend((0..c.len() - p.w).map(|| ' '));
         }
         p.w = c.len();
     }
     else
     {
         c.reserve(p.w - c.len());
-        c.extend(0..p.w - c.len()).map(||' ');
+        c.extend(0..p.w - c.len()).map(|| ' ');
     }
     p.f.push(c);
 }
@@ -64,7 +70,7 @@ fn r(p: &mut P)
     {
         if ptr.sm
         {
-            
+
         }
         else
         {
@@ -200,7 +206,10 @@ fn e(p: &mut P, ptr: &mut Ptr)
         '7' =>{},
         '8' =>{},
         '9' =>{},
-        // new additions
-        's' =>, // pop top number from the stack, choose ptr of that number, switch their locations
+            // new additions
+            // pop top number from the stack, choose ptr of that number, switch their locations
+        's' =>{},
+            // pop top number from the stack, switch topology to the surface of that genus.
+        't' =>{},
     }
 }
