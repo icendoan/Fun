@@ -15,20 +15,17 @@ struct P
     ptrs: Vec<Ptr>,
     g: u64,
     r: [i64; 16],
-    rf: [f64; 16],
 }
 
 struct Ptr
 {
     s: VecDeque<i64>,
-    sf: VecDeque<f64>,
     x: usize,
     y: usize,
     sm: bool,
     sk: bool,
     d: D,
     f: bool,
-    fm: bool,
     r: usize,
 }
 
@@ -91,6 +88,11 @@ fn r(p: &mut P)
 {
     for ptr in &mut p.ptrs
     {
+        if ptr.f
+        {
+            continue;
+        }
+
         if ptr.sm
         {
             match p.f[ptr.y][ptr.x]
@@ -364,10 +366,18 @@ fn e(p: &mut P, ptr: &mut Ptr) -> bool
             p.ptrs[x % p.ptrs.len()].f = true;
         },
         // pop a single number off the stack, thaw that pointer (if not frozen, nop)
-        'τ' =>
+        'ð' =>
         {
             let x = ptr.s.pop_back().unwrap_or(0) as usize;
             p.ptrs[x % p.ptrs.len()].f = false;
+        },
+        // thaw all pointers
+        'Ð' =>
+        {
+            for ptr in &mut p.ptrs
+            {
+                ptr.f = false;
+            }
         },
         // pop a single number off the stack, switch active register to that register
         'ρ' =>
@@ -420,7 +430,6 @@ fn e(p: &mut P, ptr: &mut Ptr) -> bool
         // pop a single value, n, off the stack, push the nth prime number onto the stack
         'π' => {},
         // pop a single value off the stack, push its prime factors onto the stack
-        // nop in float mode
         'Φ' => {},
         // flatten the current stack as a number, with the radix the value of the active register
         '·' => {},
@@ -438,11 +447,7 @@ fn e(p: &mut P, ptr: &mut Ptr) -> bool
         'Σ' => {},
         // pop a value, n, off the stack
         // push the nth digit of τ onto the stack
-        // node: capital TAU
-        'Τ' => {},
-        // toggle float mode - switches the stack/register pointer with the fp stack
-        'F' => {},
-
+        'τ' => {},
         _ => ()
     }
 
