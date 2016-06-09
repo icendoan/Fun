@@ -263,6 +263,7 @@ enum MergedInstruction
     In,
     OutI,
     OutC,
+    NOP,
 }
 
 fn opt(mut code: Vec<Instruction>) -> Vec<MergedInstruction>
@@ -329,8 +330,16 @@ fn opt(mut code: Vec<Instruction>) -> Vec<MergedInstruction>
 
 
     let mut skipping = 0;
+    let mut copy_all = false;
     for i in &code
     {
+        if copy_all
+        {
+            // escape hatch once OOB analysis fails
+            buffer.push(i);
+            continue
+        }
+
         if skipping > 0
         {
             match i
@@ -370,7 +379,13 @@ fn opt(mut code: Vec<Instruction>) -> Vec<MergedInstruction>
                 skipping = 1;
             },
 
-            _
+            Instruction::OpenLoop =>
+            {
+                buffer.push(i);
+                copy_all = true;
+            },
+
+            _ => buffer.push(i),
 
         }
     }
@@ -378,13 +393,45 @@ fn opt(mut code: Vec<Instruction>) -> Vec<MergedInstruction>
     // merge instructions
     let mut merged = Vec::with_capacity(code.len());
     
+    let mut instruction_size = 0;
+    let mut acc = NOP;
     for i in code
     {
-        
+        match (acc, i)
+        {
+            (MergedInstruction::MoveR(x), Instruction::MoveR) => acc = MergedInstruction::MoveR(x+1),
+            (MergedInstruction::MoveR(1), Instruction::MoveL) => acc = MergedInstruction::NOP,
+            (MergedInstruction::MoveR(x), Instruction::MoveL) => acc = MergedInstruction::MoveR(x-1), 
+            (MergedInstruction::MoveL(x), Instruction::MoveL) => acc = MergedInstruction::MoveL(x+1),
+            (MergedInstruction::MoveL(1), Instruction::MoveR) => acc = MergedInstruction::NOP,
+            (MergedInstruction::MoveL(x), Instruction::MoveR) => acc = MergedInstruction::MoveL(x-1),
+            (MergedInstruction::Add(x), Instruction::Inc) => acc = MergedInstruction::Add(x+1),
+            (MergedInstruction::Add(1), Instruction::Dec) => acc = MergedInstruction::NOP,
+            (MergedInstruction::Sub(1), Instruction::Inc) => acc = MergedInstruction::NOP,
+            (MergedInstruction::Sub(x), Instruction::Dec) => acc = MergedInstruction::Sub(x+1),
+            (a, i) =>
+            {
+                merged.push(a);
+                acc = match i
+                {
+                    Instruction::MoveL => MergedInstruction::MoveL(1),
+                    Instruction::MoveR => MergedInstruction::MoveR(1),
+                    Instruction::OpenLoop => MergedInstruction::OpenL,
+                    Instruction::CloseLoop => MergedInstruction::CloseL,
+                    Instruction::Inc => MergedInstruction::Add(1),
+                    Instruction::Dec => MergedInstruction::Sub(1),
+                    Instruction::Input => MergedInstruction::In,
+                    Instruction::OutputChar => MergedInstruction::OutC,
+                    Instruction::OutputInt => MergedInstruction::OutI
+                }
+            }
+        }
     }
+
+    merged
 }
 
-fn asm(code: &Vec<Instruction>) -> String
+fn asm(code: &Vec<MergedInstruction>) -> String
 {
     // register use:
     // max known tape   - 
@@ -392,4 +439,26 @@ fn asm(code: &Vec<Instruction>) -> String
     // tape start addr  - 
     // current position - 
     // current value    -
+    let mut open_ctr = 0;
+    let mut close_ctr = 0;
+    let mut asm_output = String::new();
+
+    for instr in code
+    {
+        let s = match instr
+        {
+            MergedInstruction::MoveR(x) =>,
+            MergedInstruction::MoveL(x) =>,
+            MergedInstruction::Add(x) => format!("add %eax {}", x),
+            MergedInstruction::Sub(x) => format!("sub %eax {}", x),
+            MergedInstruction::OpenL =>,
+            MergedInstruction::CloseL =>,
+            MergedInstruction::In =>,
+            MergedInstruction::OutI =>,
+            MergedInstruction::OutC =>,
+            MergedInstruction::NOP => String::new()
+        };
+
+        asm_output.push_str(&s);
+    }
 }
