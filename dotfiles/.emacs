@@ -1,10 +1,11 @@
-(require 'package) ;; You might already have this line
+;; get package repositories
+(require 'package)
 (add-to-list 'package-archives
              '("melpa" . "https://melpa.org/packages/"))
 (when (< emacs-major-version 24)
   ;; For important compatibility libraries like cl-lib
   (add-to-list 'package-archives '("gnu" . "http://elpa.gnu.org/packages/")))
-(package-initialize) ;; You might already have this line
+(package-initialize)
 
 (setq inhibit-splash-screen t)
 
@@ -35,13 +36,18 @@
 ;; require idris-mode before defining evil keys
 (require 'idris-mode)
 
-(setq evil-want-C-u-scroll t)
+(require 'smartparens)
+(smartparens-global-mode)
+
 (require 'evil)
 (require 'evil-leader)
 (require 'evil-search-highlight-persist)
+(setq evil-want-C-u-scroll t)
 (global-evil-search-highlight-persist t)
 (global-evil-leader-mode)
 (global-evil-tabs-mode t)
+(global-evil-surround-mode t)
+(evil-smartparens-mode)
 (idris-define-evil-keys)
 (evil-leader/set-leader "<SPC>")
 (evil-mode 1)
@@ -129,7 +135,7 @@
 
 ;; desktop mode
 (desktop-save-mode 1)
-(setq desktop-load-locked-desktop) ; gets the emacs server to autoload files
+(setq desktop-load-locked-desktop t) ; gets the emacs server to autoload files
 
 (custom-set-variables
  ;; custom-set-variables was added by Custom.
@@ -147,6 +153,9 @@
     ("4aee8551b53a43a883cb0b7f3255d6859d766b6c5e14bcb01bed572fcbef4328" default)))
  '(electric-pair-mode t)
  '(global-company-mode t)
+ '(package-selected-packages
+   (quote
+    (window-purpose vlf smart-compile rustfmt racer pdf-tools paredit-everywhere origami multiple-cursors magic-latex-buffer latex-preview-pane latex-pretty-symbols latex-extra js2-mode jedi jdee java-imports idris-mode haskell-mode gradle-mode gnugo flycheck-rust f evil-tabs evil-surround evil-smartparens evil-search-highlight-persist evil-paredit evil-org evil-multiedit evil-mc evil-magit elpy dedicated csharp-mode company-racer company-jedi color-theme-sanityinc-solarized cargo)))
  '(purpose-use-default-configuration nil)
  '(purpose-user-name-purposes
    (quote

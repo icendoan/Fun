@@ -1,9 +1,10 @@
-#![feature(box_syntax, box_patterns)]
+#![feature(box_syntax, box_patterns, slice_patterns)]
 use std::io::prelude::*;
 use std::fs::File;
 use std::path::Path;
 use std::error::Error;
-use std::env;
+use std::{env, ptr};
+use std::cmp::{min, max};
 
 enum Option
 {
@@ -177,22 +178,17 @@ struct Err
     colnum: u64
 }
 
-enum ParseTree
-{
-    Span(Vec<Instruction>),
-    Cond(Vec<ParseTree>, box ParseTree), // in order to handle [___[___]___]_____
-}
-
 enum Instruction
 {
     MoveL,
     MoveR,
-    OpenLoop(usize),
-    CloseLoop(usize),
+    OpenLoop,
+    CloseLoop,
     Inc,
     Dec,
     Input,
-    Output
+    OutputChar,
+    OutputInt
 }
 
 fn compile(c: CompileFlags) -> Result<(), Vec<Err>>
@@ -216,58 +212,253 @@ fn compile(c: CompileFlags) -> Result<(), Vec<Err>>
     if c.opt { opt(&mut parse_tree) }
     eval_jmps(&mut parse_tree);
     let text = asm(parse_tree);
+    
+    let mut out = match File::create(if let Some(o) = c.out { o } else { "a.out" })
+    {
+        Ok(f) => f,
+        Err(e) => return vec![Err
+                              {
+                                  errtype: ErrType::FileError,
+                                  msg: e.description.to_owned(),
+                                  linenum: 0,
+                                  colnum: 0
+                              }]
+    };
+
+    out.write_all(text.as_bytes());
 }
 
-struct Span
+fn parse(src: &str) -> Vec<Instruction>
 {
-    code: Vec<Instruction>,
-    depth: usize
-}
-
-// todo: work out how to convert to a parse tree
-// maybe build a stack of spans with depth
-// and compile an actual tree later?
-fn parse(src: &str) -> ParseTree
-{
-
-    let mut lc = 1;
-    let mut cc = 1;
-    let mut n = 0;
-
-    let mut parens_nests = Vec::new();
-
-    let mut current_span = Vec::new();
-    let mut span_stack = Vec::new();
+    let mut v = Vec::with_capacity(src.len());
     
     for c in src.chars()
     {
         match c
         {
-            '+' => current_span.push(Instruction::Inc),
-            '-' => current_span.push(Instruction::Dec),
-            '<' => current_span.push(Instruction::MoveL),
-            '>' => current_span.push(Instruction::MoveR),
-            '[' =>
-            {
-                paren_nests.push((n, lc, cc));
+            '>' => v.push(Instruction::MoveL),
+            '<' => v.push(Instruction::MoveR),
+            '[' => v.push(Instruction::OpenLoop),
+            ']' => v.push(Instruction::CloseLoop),
+            '+' => v.push(Instruction::Inc),
+            '-' => v.push(Instruction::Dec),
+            ',' => v.push(Instruction::Input),
+            '.' => v.push(Instruction::OutputChar),
+            '!' => v.push(Instruction::OutputInt),
+            _ => (),
+        }
+    }
+    
+    v
+}
 
+enum MergedInstruction
+{
+    MoveR(usize),
+    MoveL(usize),
+    Add(usize),
+    Sub(usize),
+    OpenL,
+    CloseL,
+    In,
+    OutI,
+    OutC,
+    NOP,
+}
+
+fn opt(mut code: Vec<Instruction>) -> Vec<MergedInstruction>
+{
+    let mut tape_changed = false;
+    let mut min_changed: i64 = 0;
+    let mut max_changed: i64 = 0;
+    let mut cur_pos: i64 = 0;
+
+    let mut buffer = Vec::with_capacity(code.len());
+
+    // strip leading shifts
+    for i in code
+    {
+        match i
+        {
+            Instruction::MoveL |
+            Instruction::MoveR if !tape_changed => (),
+            Instruction::Dec |
+            Instruction::Inc =>
+            {
+                tape_changed = true;
+                buffer.push(i);
             },
-            ']' =>,
-            '\n' => { lc += 1; cc = 1; n += 1; continue },
-            _ => ()
+            _ => buffer.push(i)
+        }
+    }
+
+    ptr::swap(&mut code, &mut buffer);
+    buffer.clear();
+
+    // strip adjacent canceling operations
+    // do this in a loop until they are all removed
+    let mut has_adjacents = true;
+
+    while has_adjacents
+    {
+        let mut dropped = false;
+
+        for chunk in code.chunks(2)
+        {
+            match chunk
+            {
+                [x] => buffer.push(x), // last instruction, shouldn't drop
+                [Instruction::MoveL, Instruction::MoveR] |
+                [Instruction::MoveR, Instruction::MoveL] |
+                [Instruction::Inc, Instruction::Dec] |
+                [Instruction::Dec, Instruction::Inc] => dropped = true,
+                [x, y] =>
+                {
+                    buffer.push(x);
+                    buffer.push(y);
+                }
+            }
         }
 
-        cc += 1;
-        n += 1;
+        has_adjacents = dropped;
+        ptr::swap(&mut code, &mut buffer);
+        buffer.clear();
     }
+   
+    // calculate conservative bounds on tape changes
+    // and strip dead loops
+
+
+    let mut skipping = 0;
+    let mut copy_all = false;
+    for i in &code
+    {
+        if copy_all
+        {
+            // escape hatch once OOB analysis fails
+            buffer.push(i);
+            continue
+        }
+
+        if skipping > 0
+        {
+            match i
+            {
+                Instruction::OpenLoop => skipping += 1,
+                Instruction::CloseLoop => skipping -= 1,
+                _ => ()
+            }
+
+            continue
+        }
+
+        match *i
+        {
+            Instruction::Inc |
+            Instruction::Dec =>
+            {
+                min_changed = min(cur_pos, min_changed);
+                max_changed = max(cur_pos, max_changed);
+                buffer.push(i);
+            },
+
+            Instruction::MoveL =>
+            {
+                cur_pos -= 1;
+                buffer.push(i);
+            },
+
+            Instruction::MoveR =>
+            {
+                cur_pos += 1;
+                buffer.push(i);
+            },
+
+            Instruction::OpenLoop if cur_pos > max_changed || cur_pos < min_changed =>
+            {
+                skipping = 1;
+            },
+
+            Instruction::OpenLoop =>
+            {
+                buffer.push(i);
+                copy_all = true;
+            },
+
+            _ => buffer.push(i),
+
+        }
+    }
+    
+    // merge instructions
+    let mut merged = Vec::with_capacity(code.len());
+    
+    let mut instruction_size = 0;
+    let mut acc = NOP;
+    for i in code
+    {
+        match (acc, i)
+        {
+            (MergedInstruction::MoveR(x), Instruction::MoveR) => acc = MergedInstruction::MoveR(x+1),
+            (MergedInstruction::MoveR(1), Instruction::MoveL) => acc = MergedInstruction::NOP,
+            (MergedInstruction::MoveR(x), Instruction::MoveL) => acc = MergedInstruction::MoveR(x-1), 
+            (MergedInstruction::MoveL(x), Instruction::MoveL) => acc = MergedInstruction::MoveL(x+1),
+            (MergedInstruction::MoveL(1), Instruction::MoveR) => acc = MergedInstruction::NOP,
+            (MergedInstruction::MoveL(x), Instruction::MoveR) => acc = MergedInstruction::MoveL(x-1),
+            (MergedInstruction::Add(x), Instruction::Inc) => acc = MergedInstruction::Add(x+1),
+            (MergedInstruction::Add(1), Instruction::Dec) => acc = MergedInstruction::NOP,
+            (MergedInstruction::Sub(1), Instruction::Inc) => acc = MergedInstruction::NOP,
+            (MergedInstruction::Sub(x), Instruction::Dec) => acc = MergedInstruction::Sub(x+1),
+            (a, i) =>
+            {
+                merged.push(a);
+                acc = match i
+                {
+                    Instruction::MoveL => MergedInstruction::MoveL(1),
+                    Instruction::MoveR => MergedInstruction::MoveR(1),
+                    Instruction::OpenLoop => MergedInstruction::OpenL,
+                    Instruction::CloseLoop => MergedInstruction::CloseL,
+                    Instruction::Inc => MergedInstruction::Add(1),
+                    Instruction::Dec => MergedInstruction::Sub(1),
+                    Instruction::Input => MergedInstruction::In,
+                    Instruction::OutputChar => MergedInstruction::OutC,
+                    Instruction::OutputInt => MergedInstruction::OutI
+                }
+            }
+        }
+    }
+
+    merged
 }
 
-fn opt(tree: &mut ParseTree)
+fn asm(code: &Vec<MergedInstruction>) -> String
 {
-    
-}
+    // register use:
+    // max known tape   - 
+    // min known tape   - 
+    // tape start addr  - 
+    // current position - 
+    // current value    -
+    let mut open_ctr = 0;
+    let mut close_ctr = 0;
+    let mut asm_output = String::new();
 
-fn eval_jmps(tree: &mut ParseTree)
-{
-    
+    for instr in code
+    {
+        let s = match instr
+        {
+            MergedInstruction::MoveR(x) =>,
+            MergedInstruction::MoveL(x) =>,
+            MergedInstruction::Add(x) => format!("add %eax {}", x),
+            MergedInstruction::Sub(x) => format!("sub %eax {}", x),
+            MergedInstruction::OpenL =>,
+            MergedInstruction::CloseL =>,
+            MergedInstruction::In =>,
+            MergedInstruction::OutI =>,
+            MergedInstruction::OutC =>,
+            MergedInstruction::NOP => String::new()
+        };
+
+        asm_output.push_str(&s);
+    }
 }
