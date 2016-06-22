@@ -68,7 +68,15 @@ namespace Simple
     V : Int -> Lambda VarType
     L : (s : SimpleType) -> Lambda t -> Lambda (FuncType s t)
     A : Lambda (FuncType x y) -> Lambda x -> Lambda y
+  
+  Env : Type
+  Env = (Int, List (Int, SimpleType, Lambda))
     
+  beta : Simple.Env -> Simple.Lambda τ -> Lambda τ
+  beta e (V x) = ?rhs_1
+  beta e (L s x) = ?rhs_2
+  beta e (A y z) = ?rhs_3
+  
 namespace Extended
   data ExtendedType : Type where
     VarType : BasicType -> ExtendedType
@@ -95,3 +103,4 @@ namespace Extensible
     V : (τ : BasicType) -> Int -> Extensible.Lambda (VarType τ)
     L : (α : ExtensibleType) -> Lambda β -> Lambda (FuncType α β)
     A : Extensible.Lambda (FuncType α β) -> Lambda α -> Lambda β
+
