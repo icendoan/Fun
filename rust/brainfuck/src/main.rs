@@ -448,7 +448,7 @@ fn asm(code: &Vec<MergedInstruction>) -> String
         let s = match instr
         {
             MergedInstruction::MoveR(x) =>,
-            MergedInstruction::MoveL(x) =>,
+            MergedInstruction::MoveL(x) => ,
             MergedInstruction::Add(x) => format!("add %eax {}", x),
             MergedInstruction::Sub(x) => format!("sub %eax {}", x),
             MergedInstruction::OpenL =>,
