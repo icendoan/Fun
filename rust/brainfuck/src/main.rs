@@ -431,34 +431,283 @@ fn opt(mut code: Vec<Instruction>) -> Vec<MergedInstruction>
     merged
 }
 
-fn asm(code: &Vec<MergedInstruction>) -> String
+// ignore 32bit registers for this
+enum Register {
+    RAX,
+    RBX,
+    RCX,
+    RDX,
+    RBP,
+    RSI,
+    RDI,
+    RSP,
+    R(u8),
+    RFLAGS
+}
+
+fn rax() -> Term { Term::Reg(Register::RAX) }
+fn rbx() -> Term { Term::Reg(Register::RBX) }
+fn rcx() -> Term { Term::Reg(Register::RCX) }
+fn rdx() -> Term { Term::Reg(Register::RDX) }
+fn rbp() -> Term { Term::Reg(Register::RBP) }
+fn rsi() -> Term { Term::Reg(Register::RSI) }
+fn rdi() -> Term { Term::Reg(Register::RDI) }
+fn rsp() -> Term { Term::Reg(Register::RSP) }
+fn r(n:u8) -> Term { Term::Reg(Register::R(n)) }
+fn rflags() -> Term { Term::Reg(Register::RFLAGS) }
+
+fn lit(x:i64) -> Term { Term::Lit(x) }
+fn label<T: Into<String>>(s:T)->Term { Term::Label(s.into()) }
+fn ptr(t:Term) -> Term { Term::Ptr(Box::new(t)) }
+
+enum Term {
+    Reg(Register),
+    Lit(i64),
+    Label(String),
+    Ptr(Box<Term>),
+    UnknownConst
+}
+
+enum X64 {
+    Inc(Term),
+    Dec(Term),
+    Add(Term, Term),
+    Sub(Term, Term),
+    Mul(Term, Term),
+    Div(Term, Term),
+    Addi(Term, Term),
+    Subi(Term, Term),
+    Muli(Term, Term),
+    Divi(Term, Term),
+    Mov(Term, Term),
+    Push(Term),
+    Pop(Term),
+    Call(Term),
+    Jmp(Term, bool), // bool: true if a relative jmp
+    Cmp(Term, Term),
+    Je(Term, bool),
+    Jne(Term, bool),
+    Jl(Term, bool),
+    Jle(Term, bool),
+    Jg(Term, bool),
+    Jge(Term, bool),
+    Jz(Term, bool),
+    Syscall(String),
+    Loop(Term, bool),
+    Mod(Term, Term),
+    NOP
+}
+
+fn inc(t: Term) -> X64 { X64::Inc(t) }
+fn dec(t: Term) -> X64 { X64::Dec(t) }
+fn add(t: Term, t2: Term) -> X64 { X64::Add(t, t2) }
+fn sub(t: Term, t2: Term) -> X64 { X64::Sub(t, t2) }
+fn mul(t: Term, t2: Term) -> X64 { X64::Mul(t, t2) }
+fn div(t: Term, t2: Term) -> X64 { X64::Div(t, t2) }
+fn addi(t: Term, t2: Term) -> X64 { X64::Addi(t, t2) }
+fn subi(t: Term, t2: Term) -> X64 { X64::Subi(t, t2) }
+fn muli(t: Term, t2: Term) -> X64 { X64::Muli(t, t2) }
+fn divi(t: Term, t2: Term) -> X64 { X64::Divi(t, t2) }
+fn mov(t: Term, t2: Term) -> X64 { X64::Mov(t, t2) }
+fn push(t: Term) -> X64 { X64::Push(t) }
+fn pop(t: Term) -> X64 { X64::Pop(t) }
+fn call(t: Term) -> X64 { X64::Call(t) }
+fn jmp(t: Term, b: bool) -> X64 { X64::Jmp(t, b) }
+fn cmp(t: Term, t2: Term) -> X64 { X64::Cmp(t, t2) }
+fn je(t: Term, b: bool) -> X64 { X64::Je(t, b) }
+fn jne(t: Term, b: bool) -> X64 { X64::Jne(t, b) }
+fn jl(t: Term, b: bool) -> X64 { X64::Jl(t, b) }
+fn jle(t: Term, b: bool) -> X64 { X64::Jle(t, b) }
+fn jg(t: Term, b: bool) -> X64 { X64::Jg(t, b) }
+fn jge(t: Term, b: bool) -> X64 { X64::Jge(t, b) }
+fn jz(t: Term, b: bool) -> X64 { X64::Jz(t, b) }
+fn syscall<T: Into<String>>(s: T) -> X64 { X64::Syscall(s.into()) }
+fn loop_(t: Term, b: bool) -> X64 { X64::Loop(t, b) }
+
+type ASM = Vec<X64>;
+// todo: change ASM to a struct containing a Vec<u8> and just write machine code directly
+
+fn asm(code: &Vec<MergedInstruction>) -> ASM
 {
     // register use:
-    // max known tape   - 
-    // min known tape   - 
-    // tape start addr  - 
-    // current position - 
-    // current value    -
-    let mut open_ctr = 0;
-    let mut close_ctr = 0;
-    let mut asm_output = String::new();
+    // RDX - instruction to return to on fn exit
+    // RBP - end of stack - loop stack moves downward!
+    // RSP - start of stack
+    // R8  - start of tape 
+    // R9  - end of tape
+    // R10 - current tape position
+    // R12 - current tape value (r11 is killed by syscall)
+    // R12 - stackptr of last open loop - Not using - OutI pollutes stack
 
-    for instr in code
-    {
-        let s = match instr
-        {
-            MergedInstruction::MoveR(x) =>,
-            MergedInstruction::MoveL(x) =>,
-            MergedInstruction::Add(x) => format!("add %eax {}", x),
-            MergedInstruction::Sub(x) => format!("sub %eax {}", x),
-            MergedInstruction::OpenL =>,
-            MergedInstruction::CloseL =>,
-            MergedInstruction::In =>,
-            MergedInstruction::OutI =>,
-            MergedInstruction::OutC =>,
-            MergedInstruction::NOP => String::new()
-        };
-
-        asm_output.push_str(&s);
+    /// writes the registers to the top of the stack
+    fn spill(code: &mut Vec<X64>, registers: &[Register]) {
+        for reg in registers {
+            code.push(mov(ptr(rsp()), reg));
+            code.push(add(rsp(), lit(8)));
+        }
+        code.push(sub(rsp(), lit(8*(registers.len()))));
     }
+
+    /// reads the registers from the top of the stack
+    fn read(asm: &mut Vec<X64>, registers: &[Register]) {
+        for reg in registers {
+            asm.push(mov(reg, ptr(rsp())));
+            asm.push(add(rsp(), lit(8)));
+        }
+        asm.push(sub(rsp(), lit(8*registers.len())));
+    }
+
+    fn callconv(asm: &mut Vec<X64>, fn_start: i64) {
+        asm.push(mov(rdx(), rip()));
+        asm.push(add(rdx(), lit(2))); // skip the jmp when returning!
+        asm.push(jmp(lit(fn_start), false))
+    }
+
+    const SBRK: Term = Term::Lit(0x2D);
+    const CALL_LEN: Term = Term::Lit(3);
+    const EXIT: Term = Term::Lit(0x01);
+    const WRITE: Term = Term::Lit(0x01);
+
+    let mut asm = Vec::new();
+    let alloc_addr: usize = 1;
+    let realloc_addr: usize = 12;
+
+    // prelude
+    // zero all the registers (?)
+    // allocate a page of tape space on the heap
+    // allocate stack register overflow space
+
+    asm.push(sub(rsp(), lit(128)));
+
+    // allocates a new page via sbrk
+    asm.push(mov(rax(), SBRK));
+    asm.push(mov(rdi(), lit(0)));    // get current break point
+    asm.push(syscall());
+    asm.push(mov(rdi(), lit(4096))); // result in rax
+    asm.push(add(rdi(), rax()));     // so add to rbx, call again
+    asm.push(mov(rax(), SBRK));
+    asm.push(syscall());
+    asm.push(cmp(rax(), lit(0))); // check if actually alloc'd - if oom, exit
+    asm.push(jle(lit(3), true));
+    asm.push(mov(rdi(), rax()));
+    asm.push(mov(rax(), EXIT));
+    asm.push(syscall());
+    asm.push(jmp(rdx(), false));
+
+    asm.push(mov(r(8), rax()));     // set start of tape
+    asm.push(mov(r(9), rax()));     // set end of tape   
+    asm.push(add(r(9), lit(4096))); // add tape length
+    asm.push(mov(r(10), lit(2048))); // set current position to middle of tape
+    asm.push(jmp(lit(12), true)); // skip runtime functions
+
+    // inline runtime to move the tape forward a page
+
+    callconv(&mut asm, alloc_addr); // allocate a new page on the end of the tape
+    asm.push(mov(rcx(), r(9)));
+    asm.push(sub(rcx(), r(8))); // rcx := len(tape)
+    asm.push(mov(rax(), r(9)));
+    asm.push(add(rax(), lit(4096))); // rax := dest
+    asm.push(mov(rbx(), r(9))); // rbx := src
+    asm.push(mov(ptr(rbx()), ptr(rax()))); // src -> dest
+    asm.push(dec(rax()));
+    asm.push(dec(rbx()));
+    asm.push(loop_(lit(-3), true));
+    asm.push(add(r(9), lit(4096)));
+    asm.push(jmp(rdx(), false));
+
+
+    // add user code
+
+    // todo: calculating positions at compile is probably better
+    // stack of locations to update with jump destinations
+    // push on OpenL, set and pop on CloseL
+    // let mut jumpstack: Vec<usize> = Vec::new();
+
+    for instr in code {
+        match instr {
+            MergedInstruction::Add(x) => asm.push(add(r(12), lit(x))),
+            MergedInstruction::Sub(x) => asm.push(sub(r(12), lit(x))),
+            MergedInstruction::MoveR(x) => {
+                asm.push(mov(ptr(r(10)), r(12))); // move value onto the tape
+                asm.push(mov(rax(), r(10))); // check that moving x to the right does not go off the end of the tape
+                asm.push(add(rax(), lit(x)));
+                asm.push(cmp(rax(), r(9)));
+                asm.push(jl(CALL_LEN, true));
+                callconv(&mut asm, alloc_addr);
+                asm.push(add(r(10), lit(x))); // move the tape pointer right x
+                asm.push(mov(r(12), ptr(r(10)))); // move the value at the tape pointer into the value register
+            },
+            MergedInstruction::MoveL(x) => {
+                asm.push(mov(ptr(r(10)), r(12))); // move value onto the tape
+                asm.push(mov(rax(), r(8))); // bounds check
+                asm.push(sub(rax(), lit(x)));
+                asm.push(cmp(rax(), r(8)));
+                asm.push(jg(CALL_LEN, true));
+                callconv(&mut asm, realloc_addr);
+                asm.push(sub(r(10), lit(x)));
+                asm.push(mov(r(12), ptr(r(10))));
+            },
+            MergedInstruction::OutC => {
+                asm.push(mov(rax(), WRITE));
+                asm.push(mov(rdi(), lit(1))); // 1 = stdout
+                asm.push(mov(ptr(rbp()), r(11))); // write the char to the stack
+                asm.push(mov(rsi(), rbp())); // push ptr to the correct register
+                asm.push(mov(rdx(), lit(1))); // write 1 char
+                asm.push(syscall()); // print
+                // todo: error handling
+            },
+            MergedInstruction::OutI => {
+                // write the number as a number
+                // to the stack in reverse order
+                asm.push(mov(rax(), r(12))); // copy the tape value into rax
+                asm.push(mov(rsi(), rbp())); // set up addr pointer
+                asm.push(mov(rdx(), lit(0)));// #chars
+
+                asm.push(mov(rbx(), rax()));
+                asm.push(mov(rcx(), rbx()));
+                asm.push(div(rcx(), lit(10)));
+                asm.push(mul(rcx(), lit(10)));
+                asm.push(sub(rbx(), rcx()));
+                asm.push(mov(ptr(rsi()), rbx()));
+                asm.push(inc(rsi()));
+                asm.push(div(rax(), lit(10)));
+                asm.push(inc(rdi()));
+                asm.push(cmp(rax(), lit(0)));
+                asm.push(je(lit(-10), true));
+                
+                asm.push(mov(rax(), WRITE));
+                asm.push(mov(rdi(), STDOUT));
+                // rsi and rdx already have correct params
+                asm.push(syscall);
+                // asm.push(cmp(rax(), lit(0))); // todo: error handling
+                // asm.push()
+            },
+            MergedInstruction::In => {
+                asm.push(mov(rax(), READ));
+                asm.push(mov(rdi(), STDIN));
+                asm.push(mov(rsi(), rsp())); // just write to the top of the stack
+                asm.push(mov(rdx(), lit(1))); // read a single char
+                asm.push(syscall);
+                // todo: error handling
+                asm.push(mov(r(10), ptr(rsp()))); // read char into tape value
+            },
+            MergedInstruction::OpenL => {
+                asm.push(X64::NOP); // pushed here as a marker
+            },
+            MergedInstruction::CloseL => {
+                asm.push(cmp(r(12), lit(0)));
+                asm.push(je(Term::UnknownConst, true));
+            }
+        }
+    }
+
+    // add exit syscall
+    asm.push(rax(), EXIT);
+    asm.push(rdi(), lit(0));
+    asm.push(syscall());
+}
+
+fn machine(asm: Vec<X64>) -> Vec<u8> {
+
+    Vec::new()
 }
