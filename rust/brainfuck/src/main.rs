@@ -1,4 +1,4 @@
-#![feature(box_syntax, box_patterns, slice_patterns)]
+#![feature(box_syntax, box_patterns, slice_patterns, question_mark)]
 use std::io::prelude::*;
 use std::fs::File;
 use std::path::Path;
