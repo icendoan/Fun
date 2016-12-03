@@ -1,16 +1,34 @@
-#![feature(test)]
+#![feature(test, non_ascii_idents, iter_arith)]
+#![allow(dead_code, unused_features)]
 extern crate test;
 extern crate num; // for bigint
 fn main() {
-    println!("p17: {}", p17());
-    println!("p18: {}", p18());
-    println!("p19: {}", p19());
-    println!("p20: {}", p20());
-    println!("p21: {}", p21()); // slooooow
-    println!("p22: {}", p22());
-    println!("p23: {}", p23());
-    println!("p67: {}", p67());
-}
+    //t();
+    //println!("p17: {}", p17());
+    //println!("p18: {}", p18());
+    //println!("p19: {}", p19());
+    //println!("p20: {}", p20());
+    //println!("p21: {}", p21());
+    //println!("p22: {}", p22());
+    //println!("p23: {}", p23()); // slow
+    //println!("p24: {}", p24());
+    //println!("p25: {}", p25());
+    //println!("p26: {}", p26());
+    //println!("p27: {}", p27());
+    //println!("p28: {}", p28());
+    println!("p29: {}", p29());
+    //println!("p67: {}", p67());
+}   
+
+fn gcd(mut x:u64,mut y:u64)->u64
+{while y!=0{if x<y{let t=x;x=y;y=t;}else{let t=y;y=x-y;x=t;}}x}
+
+fn prime(x:u64)->bool
+{let u=f64::sqrt(x as f64) as u64;for i in 2..(u+1){if 0==(x%i){return false}}true}
+
+fn sieve(m:usize)->Vec<bool>
+{let mut v=vec![true;m];v[0]=false;v[1]=false;
+ for i in 2..m{if v[i] {for j in(i+1)..m{if 0==j%i{v[j]==false;}}}}v}
 
 fn p17() -> u64 {
     fn s(mut n: u64) -> [u64; 5] {
@@ -614,21 +632,116 @@ fn p23() -> u64 {
         ab[i] = (i as u64) < d(i as u64);
     }
 
-    for i in 0..100 {
-        if ab[i] {
-            println!("{} is abundant", i);
+    let mut sum: u64 = 0;
+    let mut s = [false; 28124];
+
+    for x in 2..28124
+    {
+        for i in 0..x
+        {
+            s[x] |= ab[i] && ab[x - i];
         }
     }
 
-    let mut sum = 0;
-
-    for i in 2..28124 {
-        for x in 2..i {
-            if ab[x] && ab[i - x] {
-                sum += i as u64;
-            }
-        }
+    for i in 0..28124
+    {
+        if !s[i] { sum += i as u64; }
     }
 
-    sum - ((28123) * (28124) / 2)
+    sum
 }
+
+fn p24() -> u64
+{
+    // arrived at by looking at position x in 0..10 and eliminating smaller values
+    // based on the number remaining to skip
+    // e.g. there are 9! of each arrangement with fixed 0-number, so 1 000 000th must have floor(999999/9!)=2 as its starting digit (subsequently rule out 2 from appearing again)
+    // doing this recursively arrives at:
+    2783915460
+}
+
+fn p25() -> u64
+{
+    // produced with the following haskell code:
+    // let fibs = 0:1:zipWith(+)fibs(tail fibs)in snd.head$dropWhile(\(x,y)->1000>(length.show$x))$zip fibs[0..]
+    
+    4782
+}
+
+fn p26() -> u64
+{
+    fn m(d:u64)->u64
+    {
+        if gcd(d,10)==1
+        {
+            let mut c=1;
+            let mut o=10;
+            while o!=1{c+=1;o*=10;o%=d;}
+            c
+        }
+        else{0}
+    }
+    let mut c = 0;
+    let mut x = 0;
+    for i in 2..1000
+    {
+        if m(i as u64)>x{c=i;x=m(i as u64);};
+    }
+    c
+}
+
+fn p27() -> i64
+{
+    let mut ma=0;
+    let mut mb=0;
+    let mut c=0;
+    for a in -999..1000
+    {
+        for b in -1000..1001
+        {
+            let mut n=-1;
+            let mut r=2;
+            while prime(if r>1{r as u64}else{4u64}){n+=1;r=n*n+a*n+b}
+            if n>c{c=n;ma=a;mb=b;}
+            //let _=io::stdin().read(&mut buf);
+        }
+    }
+    ma*mb
+}
+
+fn p28() -> u64
+{
+    (1u64..2002u64)
+        .map(|x|x as f64)
+        .map(|n| ((n*(n+2f64)/4f64).floor() + ((n%4f64)/3f64).floor() + 1f64) as u64)
+        .sum()
+}
+
+fn p29() -> u64
+{
+    let mut v = Vec::with_capacity(99*99);
+    for a in 2..101u64
+    {
+        for b in 2..101u32
+        {
+            v.push(a.pow(b));
+        }
+    }
+
+    v.sort();
+
+    let mut c = 0;
+    let mut l = 0;
+    for x in v
+    {
+        if x != l
+        {
+            c += 1;
+            l = x;
+        }
+    }
+
+    c
+}
+
+fn t(){}
