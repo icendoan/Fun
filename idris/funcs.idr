@@ -10,6 +10,11 @@ data Bijection : (a, b : Type) -> Type where
   
 implicit bijAp : Bijection a b -> (a -> b)
 bijAp (MkBij f _ _ _) = f
+  
+ap : Injection a b -> a -> b
+ap (MkInj f _ _ _) = f
+ap : Surjection a b -> a -> b
+ap (MkSur f _ _ _) = f
 
 compAssoc : (f : a -> b) -> (g : b -> c) -> (h : c -> d) ->
             ((h . g) . f) = (h . (g . f))
@@ -43,6 +48,9 @@ idBij _ = MkBij Basics.id Basics.id (\x => Refl) (\x => Refl)
 
 infix 5 <> 
 infix 4 <~>
+  
+injSurBij : (f : Injection a b) -> (g : Injection a b) -> {auto ap f = ap g} -> Bijection a b
+injSurjBij (MkInj f g x) (MkSur f g' y) = ?something
 
 interface Semigroup t where
   (<>) : t -> t -> t
