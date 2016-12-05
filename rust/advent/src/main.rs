@@ -1,3 +1,7 @@
+extern crate crypto;
+use crypto::digest::Digest;
+use crypto::md5;
+
 use std::collections::{HashSet, HashMap};
 use std::fmt::{Formatter, Display};
 
@@ -14,6 +18,8 @@ fn main()
     day3();
     print!("Day 4: ");
     day4();
+    print!("Day 5: ");
+    day5();
 }
 
 #[derive(Copy,Clone)]
@@ -122,7 +128,11 @@ fn day1()
     let mut visited = HashSet::new();
     visited.insert((0, 0));
 
-    let mut loc = Loc { x: 0, y: 0, dir: D::N };
+    let mut loc = Loc {
+        x: 0,
+        y: 0,
+        dir: D::N,
+    };
 
     let mut revisited = false;
 
@@ -132,22 +142,28 @@ fn day1()
         {
             Some((x, y)) if !revisited =>
             {
-                print!("First revisited at: {}; ", i64::abs(x) + i64::abs(y));
+                print!("First revisited at: {}; ",
+                       i64::abs(x) + i64::abs(y));
                 revisited = true;
-            }
+            },
             _ =>
-            {}
+            {},
         }
     }
 
-    println!("Final Distance: {}", i64::abs(loc.x) + i64::abs(loc.y));
+    println!("Final Distance: {}",
+             i64::abs(loc.x) + i64::abs(loc.y));
 }
 
 fn day2()
 {
     let mut code: String = String::with_capacity(5);
     let mut code_simple: String = String::with_capacity(5);
-    let mut loc: Loc = Loc { x: 1, y: 1, dir: D::N };
+    let mut loc: Loc = Loc {
+        x: 1,
+        y: 1,
+        dir: D::N,
+    };
 
     let mut x = 0;
     let mut y = 2;
@@ -162,21 +178,21 @@ fn day2()
                 'U' if loc.y > 0 =>
                 {
                     loc.y -= 1;
-                }
+                },
                 'D' if loc.y < 2 =>
                 {
                     loc.y += 1;
-                }
+                },
                 'L' if loc.x > 0 =>
                 {
                     loc.x -= 1;
-                }
+                },
                 'R' if loc.x < 2 =>
                 {
                     loc.x += 1;
-                }
+                },
                 _ =>
-                {}
+                {},
             }
 
             match c
@@ -188,7 +204,7 @@ fn day2()
                         continue;
                     }
                     y -= 1;
-                }
+                },
                 'R' =>
                 {
                     if x == 4 || day2::PAD[y][x + 1].is_none()
@@ -196,7 +212,7 @@ fn day2()
                         continue;
                     }
                     x += 1;
-                }
+                },
                 'D' =>
                 {
                     if y == 4 || day2::PAD[y + 1][x].is_none()
@@ -204,7 +220,7 @@ fn day2()
                         continue;
                     }
                     y += 1;
-                }
+                },
                 'L' =>
                 {
                     if x == 0 || day2::PAD[y][x - 1].is_none()
@@ -212,9 +228,9 @@ fn day2()
                         continue;
                     };
                     x -= 1;
-                }
+                },
                 _ =>
-                {}
+                {},
             }
         }
 
@@ -340,7 +356,9 @@ fn test_day4()
     letter_freqs.clear();
     decryped_name.clear();
 
-    shift_letters("qzmt-zixmtkozy-ivhz".as_bytes(), 343, &mut decryped_name);
+    shift_letters("qzmt-zixmtkozy-ivhz".as_bytes(),
+                  343,
+                  &mut decryped_name);
     assert!("very encrypted name" == decryped_name);
 }
 
@@ -436,3 +454,82 @@ fn shift_letters(txt: &[u8], shift: u32, buf: &mut String)
         buf.push((97 + ((c - 97 + normalised_shift) % 26)) as char);
     }
 }
+
+fn day5()
+{
+    fn first_five_zero(buf: &[u8]) -> bool
+    {
+        if buf.len() < 3
+        {
+            return false;
+        }
+
+        return buf[0] == 0 && buf[1] == 0 && (buf[2] & 0xf0) == 0;
+    }
+
+    let mut plaintext = String::new();
+    let mut password = String::new();
+    let mut password2: [char; 8] = [' '; 8];
+    let mut p2 = String::new();
+    let mut pass2_num_chars = 0;
+    let mut out_buffer: [u8; 16] = [0; 16];
+
+    let hex_chars: [char; 16] = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'];
+
+    let mut md5: md5::Md5 = md5::Md5::new();
+    let mut index = 0;
+
+    while (password.len() < 8) || pass2_num_chars < 8
+    {
+        for x in out_buffer.iter_mut()
+        {
+            *x = 0;
+        }
+
+        plaintext.clear();
+        md5.reset();
+        plaintext.push_str(day5::ROOM_NUMBER);
+        plaintext.push_str(&index.to_string());
+        md5.input(plaintext.as_bytes());
+        md5.result(&mut out_buffer);
+
+        if first_five_zero(&out_buffer[..])
+        {
+            if password.len() < 8
+            {
+                let c: char = hex_chars[(out_buffer[2] & 0x0f) as usize];
+                password.push(c);
+            }
+
+            let index = (out_buffer[2] & 0x0f) as usize;
+            let c2: char = hex_chars[((out_buffer[3] & 0xf0) >> 4) as usize];
+            if (index < 8) && password2[index] == ' '
+            {
+                password2[index] = c2;
+                pass2_num_chars += 1;
+            }
+        }
+
+        index += 1;
+    }
+
+    for &c in &password2[..]
+    {
+        p2.push(c);
+    }
+
+    println!("Sequential password: {}; Positional password: {}",
+             password,
+             p2);
+}
+
+// fn bytes_to_str(bytes: &[u8], out: &mut String)
+// {
+// let hex_chars: [char; 16] = ['0', '1', '2', '3', '4', '5', '6', '7',
+// '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'];
+//     for &byte in bytes
+//     {
+//         out.push(hex_chars[((byte & 0xf0) >> 4) as usize]);
+//         out.push(hex_chars[(byte & 0x0f) as usize]);
+//     }
+// }

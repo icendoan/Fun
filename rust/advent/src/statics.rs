@@ -2756,3 +2756,8 @@ uqtqbizg-ozilm-jiasmb-uizsmbqvo-122[ktxvs]
 nwlddtqtpo-mldvpe-fdpc-epdetyr-509[dpetl]
 wfintfhynaj-idj-qfgtwfytwd-229[efudw]
 yhwooebeaz-nwilwcejc-ydkykhwpa-owhao-160[skuyi]";}
+
+pub mod day5
+{
+    pub static ROOM_NUMBER: &'static str = "cxdnnyjw";
+}
