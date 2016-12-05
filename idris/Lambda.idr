@@ -1,7 +1,6 @@
 import Data.Vect
 
 %default total
-
 partial fix : Eq a => (a -> a) -> a -> a
 fix f x = let s = iterate f x in go s
   where
@@ -61,46 +60,72 @@ value (BArr n t) = Vect n (value t)
   
 namespace Simple
   data SimpleType : Type where
-    VarType : SimpleType
+    BaseType : SimpleType
     FuncType : SimpleType -> SimpleType -> SimpleType
   
   data Lambda : SimpleType -> Type where
-    V : Int -> Lambda VarType
+    V : Int -> Lambda τ
     L : (s : SimpleType) -> Lambda t -> Lambda (FuncType s t)
     A : Lambda (FuncType x y) -> Lambda x -> Lambda y
   
   Env : Type
-  Env = (Int, List (Int, SimpleType, Lambda))
-    
-  beta : Simple.Env -> Simple.Lambda τ -> Lambda τ
-  beta e (V x) = ?rhs_1
-  beta e (L s x) = ?rhs_2
-  beta e (A y z) = ?rhs_3
+  Env = List (Int, (τ : SimpleType ** Lambda τ))
   
-namespace Extended
-  data ExtendedType : Type where
-    VarType : BasicType -> ExtendedType
-    FuncType : ExtendedType -> ExtendedType -> ExtendedType
-    DisjType : ExtendedType -> ExtendedType -> ExtendedType
-    ConjType : ExtendedType -> ExtendedType -> ExtendedType
+  varIndexExtract : (Simple.V x = V y) -> x = y
+  varIndexExtract Refl = Refl
   
-  data Lambda : ExtendedType -> Type where
-    C : (τ : BasicType) -> value τ -> Lambda (VarType τ)
-    V : (τ : BasicType) -> Int -> Lambda (VarType τ)
-    L : (α : ExtendedType) -> Lambda β -> Lambda (FuncType α β)
-    A : Extended.Lambda (FuncType α β) -> Extended.Lambda α -> Lambda β
+  funcParamExtract : (Simple.FuncType x y) = (FuncType x' y') -> y = y'
+  funcParamExtract Refl = Refl
   
-namespace Extensible
-  data ExtensibleType : Type where
-    VarType : BasicType -> ExtensibleType
-    FuncType : ExtensibleType -> ExtensibleType -> ExtensibleType
-    ConjType : ExtensibleType -> ExtensibleType -> ExtensibleType
-    DisjType : ExtensibleType -> ExtensibleType -> ExtensibleType
-    DefnType : String -> ExtensibleType -> ExtensibleType
+  baseNotFunc : (BaseType = FuncType _ _) -> Void
+  baseNotFunc Refl impossible
   
-  data Lambda : ExtensibleType -> Type where
-    C : (τ : BasicType) -> value τ -> Extensible.Lambda (VarType τ)
-    V : (τ : BasicType) -> Int -> Extensible.Lambda (VarType τ)
-    L : (α : ExtensibleType) -> Lambda β -> Lambda (FuncType α β)
-    A : Extensible.Lambda (FuncType α β) -> Lambda α -> Lambda β
-
+  varNotFunc : V x = L a b -> Void
+  varNotFunc Refl impossible
+  varNotApp : Simple.V x = A l r -> Void
+  varNotApp Refl impossible
+  funcNotApp : Simple.A l r = L a b -> Void
+  funcNotApp Refl impossible
+  
+  DecEq (Lambda τ) where
+    decEq (V x) (V y) with (decEq x y)
+      | (Yes prf) = Yes $ cong {f=V} prf
+      | (No contra) = No $ \prf : (Simple.V x = V y) => contra (varIndexExtract prf)
+    decEq (L α β) (L α β') with (decEq β β')
+      | (Yes prf) = Yes $ cong {f=L α} prf
+      | (No contra) = No $ \prf => contra ((\Refl => Refl) prf)
+    decEq (A {x} l r) (A {x} l' r') with (decEq r r')
+      | (Yes prf) = case decEq l l' of
+             Yes Refl => Yes $ cong {f=A l} prf
+             No contr => No $ \prf => contr ((\Refl => Refl) prf)
+      | (No contra) = No $ \prf => contra ((\Refl => Refl) prf)
+    decEq (V x) (L a b) = No varNotFunc
+    decEq (V x) (A l r) = No varNotApp
+    decEq (L a b) (A l r) = No $ negEqSym funcNotApp
+    decEq (L a b) (V x) = No $ negEqSym varNotFunc
+    decEq (A l r) (V x) = No $ negEqSym varNotApp
+    decEq (A l r) (L a b) = No funcNotApp
+  
+  DecEq (SimpleType) where
+    decEq (BaseType) (BaseType) = Yes Refl
+    decEq (FuncType x y) (FuncType x' y') = 
+      case decEq y y' of
+        Yes prf => case decEq x x' of
+           Yes Refl => Yes $ cong {f=FuncType x} prf
+           No contra => No $ \prf => contra ((\Refl => Refl) prf)
+        No contra => No $ \prf => contra (funcParamExtract prf)
+    decEq (FuncType a b) (BaseType) = No $ negEqSym baseNotFunc
+    decEq (BaseType) (FuncType a b) = No baseNotFunc
+  
+  replace : Lambda (FuncType α β) -> Lambda α -> Lambda β
+  replace f a = go 0 f a
+    where
+      go : Nat -> Simple.Lambda (FuncType α β) -> Lambda α -> Lambda β
+      go k (L s λ) a = L s $ go (S k) λ a
+      go k (A λ ρ) a = A (go k λ α) (go k ρ α)
+      go k (V x) a = V x
+  
+  beta : Lambda τ -> Lambda τ
+  beta (V x) = V x
+  beta (L s x) = L s $ beta x
+  beta (A y z) = replace y z
