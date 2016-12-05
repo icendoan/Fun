@@ -20,6 +20,46 @@ fn main()
     day4();
     print!("Day 5: ");
     day5();
+    print!("Day 6: ");
+    day6();
+    print!("Day 7: ");
+    day7();
+    print!("Day 8: ");
+    day8();
+    print!("Day 9: ");
+    day9();
+    print!("Day 10: ");
+    day10();
+    print!("Day 11: ");
+    day11();
+    print!("Day 12: ");
+    day12();
+    print!("Day 13: ");
+    day13();
+    print!("Day 14: ");
+    day14();
+    print!("Day 15: ");
+    day15();
+    print!("Day 16: ");
+    day16();
+    print!("Day 17: ");
+    day17();
+    print!("Day 18: ");
+    day18();
+    print!("Day 19: ");
+    day19();
+    print!("Day 20: ");
+    day20();
+    print!("Day 21: ");
+    day21();
+    print!("Day 22: ");
+    day22();
+    print!("Day 23: ");
+    day23();
+    print!("Day 24: ");
+    day24();
+    print!("Day 25: ");
+    day25();
 }
 
 #[derive(Copy,Clone)]
@@ -523,13 +563,80 @@ fn day5()
              p2);
 }
 
-// fn bytes_to_str(bytes: &[u8], out: &mut String)
-// {
-// let hex_chars: [char; 16] = ['0', '1', '2', '3', '4', '5', '6', '7',
-// '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'];
-//     for &byte in bytes
-//     {
-//         out.push(hex_chars[((byte & 0xf0) >> 4) as usize]);
-//         out.push(hex_chars[(byte & 0x0f) as usize]);
-//     }
-// }
+fn write_hex_str(bytes: &[u8], out: &mut String)
+{
+    let hex_chars: [char; 16] = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'];
+    for &byte in bytes
+    {
+        out.push(hex_chars[((byte & 0xf0) >> 4) as usize]);
+        out.push(hex_chars[(byte & 0x0f) as usize]);
+    }
+}
+
+fn to_hex_str(bytes: &[u8]) -> String
+{
+    let mut s = String::with_capacity(bytes.len());
+    write_hex_str(bytes, &mut s);
+    s
+}
+
+fn day6()
+{
+}
+fn day7()
+{
+}
+fn day8()
+{
+}
+fn day9()
+{
+}
+fn day10()
+{
+}
+fn day11()
+{
+}
+fn day12()
+{
+}
+fn day13()
+{
+}
+fn day14()
+{
+}
+fn day15()
+{
+}
+fn day16()
+{
+}
+fn day17()
+{
+}
+fn day18()
+{
+}
+fn day19()
+{
+}
+fn day20()
+{
+}
+fn day21()
+{
+}
+fn day22()
+{
+}
+fn day23()
+{
+}
+fn day24()
+{
+}
+fn day25()
+{
+}
