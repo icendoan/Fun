@@ -582,9 +582,112 @@ fn to_hex_str(bytes: &[u8]) -> String
 
 fn day6()
 {
+    let mut hashmaps = vec![HashMap::new(); 8];
+    let mut message = String::new();
+    let mut min_msg = String::new();
+
+    for msg in &day6::MESSAGES[..]
+    {
+        for (i, c) in msg.chars().enumerate()
+        {
+            assert!(i < 8);
+            if hashmaps[i].contains_key(&c)
+            {
+                hashmaps[i].get_mut(&c).map(|x| *x += 1);
+            }
+            else
+            {
+                hashmaps[i].insert(c, 1);
+            }
+        }
+    }
+    for map in &mut hashmaps[..]
+    {
+        let mut max_count = 0;
+        let mut max_char = ' ';
+        let mut min_count = 1000;
+        let mut min_char = ' ';
+
+        for (c, n) in map.drain()
+        {
+            if n > max_count
+            {
+                max_char = c;
+                max_count = n;
+            }
+
+            if n < min_count
+            {
+                min_char = c;
+                min_count = n;
+            }
+        }
+        message.push(max_char);
+        min_msg.push(min_char);
+
+    }
+    println!("Message: {}; Min Message: {}",
+             message,
+             min_msg);
 }
+
 fn day7()
 {
+    fn palindrome(txt: &str) -> bool
+    {
+        txt.chars()
+            .zip(txt.chars().rev())
+            .fold(true, |acc, (x, y)| acc && (x == y))
+    }
+
+    let mut tls_count: u32 = 0;
+
+    for &ip in &day7::IPs[..]
+    {
+        let mut outer_palindrome = false;
+        let mut inner_palindrome = false;
+        let mut is_inner = false;
+
+        for w in windows(ip, 4)
+        {
+            // filter out transitionary windows
+            if w.contains('[')
+            {
+                is_inner = true;
+                continue;
+            }
+
+            if w.contains(']')
+            {
+                is_inner = false;
+                continue;
+            }
+
+            if is_inner
+            {
+                inner_palindrome |= palindrome(w) &&
+                                    w.chars()
+                    .fold((true, ' '),
+                          |(x, y), c| (x && (y != c), c))
+                    .0;
+            }
+            else
+            {
+                outer_palindrome |= palindrome(w) &&
+                                    w.chars()
+                    .fold((true, ' '),
+                          |(x, y), c| (x && (y != c), c))
+                    .0;
+            }
+        }
+
+        if outer_palindrome && !inner_palindrome
+        {
+            tls_count += 1;
+        }
+    }
+
+    println!("TLS addresses: {}", tls_count)
 }
 fn day8()
 {
@@ -639,4 +742,46 @@ fn day24()
 }
 fn day25()
 {
+}
+
+struct StrWindow<'a>
+{
+    base: &'a str,
+    size: usize,
+    posn: usize,
+}
+
+impl<'a> StrWindow<'a>
+{
+    fn windows(base: &str, size: usize) -> StrWindow
+    {
+        StrWindow {
+            base: base,
+            size: size,
+            posn: 0,
+        }
+    }
+}
+
+fn windows(s: &str, n: usize) -> StrWindow
+{
+    StrWindow::windows(s, n)
+}
+
+impl<'a> Iterator for StrWindow<'a>
+{
+    type Item = &'a str;
+    fn next(&mut self) -> Option<&'a str>
+    {
+        if self.size + self.posn > self.base.len()
+        {
+            return None;
+
+        }
+
+        let old_posn = self.posn;
+        self.posn += self.size;
+
+        return Some(&self.base[old_posn..self.posn]);
+    }
 }
