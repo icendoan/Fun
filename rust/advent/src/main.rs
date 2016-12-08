@@ -60,6 +60,7 @@ fn main()
     day24();
     print!("Day 25: ");
     day25();
+    println!("");
 }
 
 #[derive(Copy,Clone)]
@@ -363,11 +364,10 @@ fn test_day4()
     let mut letters = HashMap::new();
     let mut letter_freqs = Vec::new();
     let mut decryped_name = String::new();
-    let mut result = 0;
-    result = day4_inner("aaaaa-bbb-z-y-x-123[abxyz]",
-                        &mut letters,
-                        &mut letter_freqs,
-                        &mut decryped_name);
+    let result = day4_inner("aaaaa-bbb-z-y-x-123[abxyz]",
+                            &mut letters,
+                            &mut letter_freqs,
+                            &mut decryped_name);
 
     assert!(result == 123);
     letters.clear();
@@ -563,22 +563,6 @@ fn day5()
              p2);
 }
 
-fn write_hex_str(bytes: &[u8], out: &mut String)
-{
-    let hex_chars: [char; 16] = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'];
-    for &byte in bytes
-    {
-        out.push(hex_chars[((byte & 0xf0) >> 4) as usize]);
-        out.push(hex_chars[(byte & 0x0f) as usize]);
-    }
-}
-
-fn to_hex_str(bytes: &[u8]) -> String
-{
-    let mut s = String::with_capacity(bytes.len());
-    write_hex_str(bytes, &mut s);
-    s
-}
 
 fn day6()
 {
@@ -633,65 +617,336 @@ fn day6()
 
 fn day7()
 {
-    fn palindrome(txt: &str) -> bool
-    {
-        txt.chars()
-            .zip(txt.chars().rev())
-            .fold(true, |acc, (x, y)| acc && (x == y))
-    }
 
     let mut tls_count: u32 = 0;
+    let mut ssl_count: u32 = 0;
 
     for &ip in &day7::IPs[..]
     {
-        let mut outer_palindrome = false;
-        let mut inner_palindrome = false;
-        let mut is_inner = false;
-
-        for w in windows(ip, 4)
-        {
-            // filter out transitionary windows
-            if w.contains('[')
-            {
-                is_inner = true;
-                continue;
-            }
-
-            if w.contains(']')
-            {
-                is_inner = false;
-                continue;
-            }
-
-            if is_inner
-            {
-                inner_palindrome |= palindrome(w) &&
-                                    w.chars()
-                    .fold((true, ' '),
-                          |(x, y), c| (x && (y != c), c))
-                    .0;
-            }
-            else
-            {
-                outer_palindrome |= palindrome(w) &&
-                                    w.chars()
-                    .fold((true, ' '),
-                          |(x, y), c| (x && (y != c), c))
-                    .0;
-            }
-        }
-
-        if outer_palindrome && !inner_palindrome
+        if supports_tls(ip)
         {
             tls_count += 1;
         }
+
+        if supports_ssl(ip)
+        {
+            ssl_count += 1;
+        }
     }
 
-    println!("TLS addresses: {}", tls_count)
+    println!("TLS addresses: {}, SSL addresses: {}",
+             tls_count,
+             ssl_count)
 }
+
+fn supports_tls(ip: &str) -> bool
+{
+    let mut outer_palindrome = false;
+    let mut inner_palindrome = false;
+    let mut is_inner = false;
+
+    for w in windows(ip, 4)
+    {
+        // filter out transitionary windows
+        if w.contains('[')
+        {
+            is_inner = true;
+            continue;
+        }
+
+        if w.contains(']')
+        {
+            is_inner = false;
+            continue;
+        }
+
+        if is_inner
+        {
+            inner_palindrome |= palindrome(w) &&
+                                w.chars()
+                .take(2)
+                .fold((true, ' '),
+                      |(x, y), c| (x && (y != c), c))
+                .0;
+        }
+        else
+        {
+            outer_palindrome |= palindrome(w) &&
+                                w.chars()
+                .take(2)
+                .fold((true, ' '),
+                      |(x, y), c| (x && (y != c), c))
+                .0;
+        }
+    }
+
+    outer_palindrome && !inner_palindrome
+}
+
+fn supports_ssl(ip: &str) -> bool
+{
+    fn aba(w: &str) -> bool
+    {
+        (w.len() == 3) && (w.chars().next()) == (w.chars().rev().next()) &&
+        w.chars()
+            .fold((true, ' '),
+                  |(x, y), z| (x && (y != z), z))
+            .0
+    }
+
+    fn invert(w: &str, buf: &mut String) -> Result<(), ()>
+    {
+        if w.len() != 3
+        {
+            return Err(());
+        }
+        let mut iter = w.chars();
+        buf.clear();
+        let inner = iter.next().unwrap();
+        let outer = iter.next().unwrap();
+        buf.push(outer);
+        buf.push(inner);
+        buf.push(outer);
+
+        Ok(())
+    }
+
+
+    let mut inner_sections = Vec::new();
+    let mut outer_sections = Vec::new();
+    let mut bab: String = String::with_capacity(3);
+    let mut inner = false;
+    for w in windows(ip, 3)
+    {
+        if w.contains('[')
+        {
+            inner = true;
+            continue;
+        }
+
+        if w.contains(']')
+        {
+            inner = false;
+            continue;
+        }
+        if aba(w)
+        {
+            if inner
+            {
+                inner_sections.push(w);
+            }
+            else
+            {
+                outer_sections.push(w);
+            }
+        }
+    }
+
+    for section in outer_sections
+    {
+        for inner_section in &inner_sections
+        {
+            invert(inner_section, &mut bab);
+            if section == bab
+            {
+                return true;
+
+            }
+
+        }
+
+    }
+
+    false
+}
+
+#[test]
+fn day7_test()
+{
+    assert!(palindrome("abba"));
+    assert!(!palindrome("mnop"));
+    assert!(supports_tls("abba[mnop]qrst"),
+            "abba[mnop]qrst");
+    assert!(!supports_tls("abcd[bddb]xyyx"),
+            "abcd[bddb]xyyx");
+    assert!(!supports_tls("aaaa[qwer]tyui"),
+            "aaaa[qwer]tyui");
+    assert!(supports_tls("ioxxoj[asdfgh]zxcvbn"),
+            "ioxxoj[asdfgh]zxcvbn");
+
+    assert!(supports_ssl("aba[bab]xyz"),
+            "aba[bab]xyz");
+    assert!(!supports_ssl("xyx[xyx]xyx"),
+            "xyx[xyx]xyx");
+    assert!(supports_ssl("aaa[kek]eke"),
+            "aaa[kek]eke");
+    assert!(supports_ssl("zazbz[bzb]cdb"),
+            "zazbz[bzb]cdb");
+}
+
 fn day8()
 {
+    // use u64 = [bool;64]
+    let mut screen: Screen = Screen::new(50, 6);
+    for instr in &day8::INSTRUCTIONS[..]
+    {
+        screen.exec(instr);
+    }
+
+    println!("Cells lit: {}", screen.ct());
+    screen.pr();
 }
+
+struct Screen
+{
+    data: [[bool; 50]; 6],
+    buf: [bool; 50],
+    width: usize,
+    height: usize,
+}
+
+impl Screen
+{
+    fn rr(&mut self, r: usize, s: usize)
+    {
+        if r >= self.height
+        {
+            return;
+        }
+
+        let row: &mut [bool; 50] = &mut self.data[r];
+        let buf: &mut [bool; 50] = &mut self.buf;
+        let w: usize = self.width;
+
+        for i in 0..w
+        {
+            buf[(i + s) % w] = row[i];
+        }
+
+        for i in 0..w
+        {
+            row[i] = buf[i];
+        }
+    }
+
+    fn rc(&mut self, c: usize, s: usize)
+    {
+        if c >= self.width
+        {
+            return;
+        }
+        let h: usize = self.height;
+
+        for i in 0..h
+        {
+            self.buf[(i + s) % h] = self.data[i][c];
+        }
+
+        for i in 0..h
+        {
+            self.data[i][c] = self.buf[i];
+        }
+    }
+
+    fn sq(&mut self, a: usize, b: usize)
+    {
+        let h = self.height;
+        let w = self.width;
+        if w < a || h < b
+        {
+            return;
+        }
+        for row in &mut self.data[0..b]
+        {
+            for val in &mut row[0..a]
+            {
+                *val = true;
+            }
+        }
+    }
+
+    fn cl(&mut self)
+    {
+        for row in &mut self.data[..]
+        {
+            for val in &mut row[..]
+            {
+                *val = false;
+            }
+        }
+
+        for val in &mut self.buf[..]
+        {
+            *val = false;
+        }
+    }
+
+    fn pr(&self)
+    {
+        let mut s = String::with_capacity((self.width + 1) * self.height);
+
+        for row in &self.data[0..self.height]
+        {
+            for val in &row[0..self.width]
+            {
+                s.push(if *val { '#' } else { ' ' });
+            }
+            s.push('\n');
+        }
+
+        println!("{}", s);
+    }
+
+    fn new(w: usize, h: usize) -> Screen
+    {
+        Screen {
+            data: [[false; 50]; 6],
+            buf: [false; 50],
+            width: w,
+            height: h,
+        }
+    }
+
+    fn exec(&mut self, i: &day8::Instr)
+    {
+        match *i
+        {
+            day8::Instr::RRow(row, shift) => self.rr(row, shift),
+            day8::Instr::RCol(col, shift) => self.rc(col, shift),
+            day8::Instr::Rect(w, h) => self.sq(w, h),
+        }
+    }
+
+    fn ct(&self) -> u64
+    {
+        let mut x = 0;
+        for row in &self.data[0..self.height]
+        {
+            for val in &row[0..self.width]
+            {
+                if *val
+                {
+                    x += 1;
+                }
+            }
+        }
+        x
+    }
+}
+#[test]
+fn test_screen()
+{
+    use statics::day8::Instr;
+    let mut s = Screen::new(7, 3);
+    s.exec(&Instr::Rect(3, 2));
+    s.exec(&Instr::RCol(1, 1));
+    s.exec(&Instr::RRow(0, 4));
+    s.exec(&Instr::RCol(1, 1));
+    assert!(s.data[0][0..7] == [false, true, false, false, true, false, true]);
+    assert!(s.data[1][0..7] == [true, false, true, false, false, false, false]);
+    assert!(s.data[2][0..7] == [false, true, false, false, false, false, false]);
+}
+
 fn day9()
 {
 }
@@ -780,8 +1035,40 @@ impl<'a> Iterator for StrWindow<'a>
         }
 
         let old_posn = self.posn;
-        self.posn += self.size;
+        self.posn += 1;
 
-        return Some(&self.base[old_posn..self.posn]);
+        return Some(&self.base[old_posn..old_posn + self.size]);
     }
+}
+
+#[test]
+fn test_windows()
+{
+    let s: &'static str = "abcdefghi";
+    let w: [&'static str; 6] = ["abcd", "bcde", "cdef", "defg", "efgh", "fghi"];
+    assert!(windows(s, 4).zip(w[..].iter()).fold(true, |x, (y, z)| x && (&y == z)))
+}
+
+fn palindrome(txt: &str) -> bool
+{
+    txt.chars()
+        .zip(txt.chars().rev())
+        .fold(true, |acc, (x, y)| acc && (x == y))
+}
+
+fn write_hex_str(bytes: &[u8], out: &mut String)
+{
+    let hex_chars: [char; 16] = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'];
+    for &byte in bytes
+    {
+        out.push(hex_chars[((byte & 0xf0) >> 4) as usize]);
+        out.push(hex_chars[(byte & 0x0f) as usize]);
+    }
+}
+
+fn to_hex_str(bytes: &[u8]) -> String
+{
+    let mut s = String::with_capacity(bytes.len());
+    write_hex_str(bytes, &mut s);
+    s
 }
