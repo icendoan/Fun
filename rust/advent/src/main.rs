@@ -396,9 +396,9 @@ fn test_day4()
     letter_freqs.clear();
     decryped_name.clear();
 
-    shift_letters("qzmt-zixmtkozy-ivhz".as_bytes(),
-                  343,
-                  &mut decryped_name);
+    caesar_shift("qzmt-zixmtkozy-ivhz".as_bytes(),
+                 343,
+                 &mut decryped_name);
     assert!("very encrypted name" == decryped_name);
 }
 
@@ -473,13 +473,13 @@ fn day4_inner(room_spec: &str,
         }
     }
 
-    shift_letters(&room_spec[0..name_end_idx].as_bytes(),
-                  room_number,
-                  decryped_name);
+    caesar_shift(&room_spec[0..name_end_idx].as_bytes(),
+                 room_number,
+                 decryped_name);
     return room_number;
 }
 
-fn shift_letters(txt: &[u8], shift: u32, buf: &mut String)
+fn caesar_shift(txt: &[u8], shift: u32, buf: &mut String)
 {
     let normalised_shift: u8 = (shift % 26) as u8;
 
