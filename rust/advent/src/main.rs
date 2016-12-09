@@ -283,7 +283,9 @@ fn day2()
         code_simple.push((49 + (3 * loc.y) + loc.x) as u8 as char);
     }
 
-    println!("{}, {}", code_simple, code);
+    println!("Square pad code: {}, Diamond pad code: {}",
+             code_simple,
+             code);
 }
 
 fn day3()
@@ -694,11 +696,11 @@ fn supports_ssl(ip: &str) -> bool
             .0
     }
 
-    fn invert(w: &str, buf: &mut String) -> Result<(), ()>
+    fn invert(w: &str, buf: &mut String)
     {
         if w.len() != 3
         {
-            return Err(());
+            return;
         }
         let mut iter = w.chars();
         buf.clear();
@@ -707,8 +709,6 @@ fn supports_ssl(ip: &str) -> bool
         buf.push(outer);
         buf.push(inner);
         buf.push(outer);
-
-        Ok(())
     }
 
 
@@ -865,6 +865,7 @@ impl Screen
         }
     }
 
+    #[allow(dead_code)]
     fn cl(&mut self)
     {
         for row in &mut self.data[..]
@@ -949,7 +950,266 @@ fn test_screen()
 
 fn day9()
 {
+    let mut size: u64 = 0;
+    let d = Decompressor::new(day9::FILE_TEXT);
+    for block in d
+    {
+        size += block.len() as u64;
+    }
+
+    println!("Decompressed size: {}, full size: {}",
+             size,
+             decompressed_size(day9::FILE_TEXT));
 }
+
+#[derive(Debug)]
+enum DecompressionBlock
+{
+    Mul(u64, u64, u64),
+    Raw(u64, u64),
+}
+
+impl DecompressionBlock
+{
+    fn position(&self) -> u64
+    {
+        match *self
+        {
+            DecompressionBlock::Mul(p, _, _) => p,
+            DecompressionBlock::Raw(p, _) => p,
+        }
+    }
+
+    fn length(&self) -> u64
+    {
+        match *self
+        {
+            DecompressionBlock::Mul(_, l, _) |
+            DecompressionBlock::Raw(_, l) => l,
+        }
+    }
+}
+
+fn eval_chain(chain: &[DecompressionBlock], position: u64, length: u64) -> u64
+{
+    let mut size: u64 = 0;
+    // handle each character of the raw base separately, to account for disjoint
+    // spans
+    println!("{:?}", chain);
+    for p in 0..length
+    {
+        let mut multiplier = 1;
+        for block in chain
+        {
+            if let &DecompressionBlock::Mul(mul_start, l, m) = block
+            {
+                println!("{} >= {}",
+                         l + mul_start,
+                         p + (position - mul_start));
+
+                if l + mul_start > p + (position - mul_start)
+                {
+                    multiplier *= m;
+                }
+            }
+        }
+
+        size += multiplier;
+    }
+
+    size
+}
+
+fn decompressed_size(txt: &str) -> u64
+{
+    let mut blocks = Vec::new();
+    let mut position = 0;
+    for block in txt.split(|x| x == '(' || x == ')')
+    {
+        position += block.len() as u64;
+        if let Some((len, count)) = parse_marker(block)
+        {
+            blocks.push(DecompressionBlock::Mul(position, len as u64, count as u64));
+        }
+        else
+        {
+            blocks.push(DecompressionBlock::Raw(position, block.len() as u64))
+        }
+    }
+
+    let mut size: u64 = 0;
+    let mut active = Vec::new();
+    position = 0;
+
+    for block in blocks
+    {
+        position = block.position();
+        if let DecompressionBlock::Raw(p, l) = block
+        {
+            size += eval_chain(&active, p, l);
+        }
+        else
+        {
+            active.push(block);
+        }
+
+        active.retain(|x| x.length() + x.position() > position)
+    }
+
+    size
+}
+
+struct Decompressor<'a>
+{
+    posn: usize,
+    txt: &'a str,
+    len: usize,
+    ct: usize,
+}
+
+impl<'a> Iterator for Decompressor<'a>
+{
+    type Item = &'a str;
+    fn next(&mut self) -> Option<&'a str>
+    {
+        if self.posn == self.txt.len()
+        {
+            return None;
+        }
+        if self.ct > 0
+        {
+            let block = &self.txt[self.posn..self.posn + self.len];
+            self.ct -= 1;
+            if self.ct == 0
+            {
+                self.posn += self.len;
+                self.len = 0;
+            }
+            return Some(block);
+        }
+
+        // find the start of the next marker
+        // and then set the marker
+        // and then yield preceding block
+
+        let next_marker_pos = match (&self.txt[self.posn..]).find('(')
+        {
+            Some(n) => n,
+            None =>
+            {
+                let rest = &self.txt[self.posn..];
+                self.posn = self.txt.len();
+                if rest.is_empty()
+                {
+                    return None;
+                }
+                else
+                {
+                    return Some(rest);
+                }
+            },
+
+        };
+
+        let marker_len = (&self.txt[self.posn + next_marker_pos..]).find(')').unwrap();
+        let (len, count) =
+            parse_marker(&self.txt[self.posn + next_marker_pos..self.posn + next_marker_pos + marker_len]).unwrap();
+        self.ct = count;
+        self.len = len;
+        let pre_block = &self.txt[self.posn..self.posn + next_marker_pos];
+        self.posn += next_marker_pos + marker_len + 1; // skip ending ')'
+
+        // for example, if we start with a marker
+        if pre_block.is_empty()
+        {
+            self.ct -= 1;
+            Some(&self.txt[self.posn..self.posn + self.len])
+        }
+        else
+        {
+            Some(pre_block)
+        }
+    }
+}
+
+impl<'a> Decompressor<'a>
+{
+    fn new(src: &'a str) -> Decompressor<'a>
+    {
+        Decompressor {
+            txt: src,
+            len: 0,
+            ct: 0,
+            posn: 0,
+        }
+
+    }
+}
+
+fn parse_marker(txt: &str) -> Option<(usize, usize)>
+{
+    let src = if txt.starts_with('(')
+    {
+        &txt[1..]
+    }
+    else
+    {
+        &txt[..]
+    };
+
+    let split = if let Some(n) = src.find('x')
+    {
+        n
+    }
+    else
+    {
+        return None;
+    };
+    let len = if let Ok(n) = usize::from_str_radix(&src[0..split], 10)
+    {
+        n
+    }
+    else
+    {
+        return None;
+    };
+    let count = if let Ok(n) = usize::from_str_radix(&src[split + 1..], 10)
+    {
+        n
+    }
+    else
+    {
+        return None;
+    };
+    Some((len, count))
+}
+
+#[test]
+fn test_decompressor()
+{
+    let test1 = "ADVENT";
+    let d1 = Decompressor::new(test1);
+    let o1: Vec<_> = d1.collect();
+    assert!(o1 == vec!["ADVENT"]);
+    let test2 = "A(1x5)BC";
+    let d2 = Decompressor::new(test2);
+    let o2: Vec<_> = d2.collect();
+    assert!(o2 == vec!["A", "B", "B", "B", "B", "B", "C"]);
+    let test3 = "(3x3)XYZ";
+    let d3 = Decompressor::new(test3);
+    let o3: Vec<_> = d3.collect();
+    assert!(o3 == vec!["XYZ", "XYZ", "XYZ"]);
+    let d4 = Decompressor::new("A(2x2)BCD(2x2)EFG");
+    let o4: Vec<_> = d4.collect();
+    assert!(o4 == vec!["A", "BC", "BC", "D", "EF", "EF", "G"]);
+
+    let o5 = decompressed_size("(3x3)XYZ");
+    println!("{}", o5);
+    assert!(o5 == 9);
+    assert!(decompressed_size("X(8x2)(3x3)ABCY") == "XABCABCABCABCABCABCY".len() as u64);
+    assert!(decompressed_size("(27x12)(20x12)(13x14)(7x10)(1x12)A") == 241920);
+}
+
 fn day10()
 {
 }
@@ -1056,6 +1316,7 @@ fn palindrome(txt: &str) -> bool
         .fold(true, |acc, (x, y)| acc && (x == y))
 }
 
+#[allow(dead_code)]
 fn write_hex_str(bytes: &[u8], out: &mut String)
 {
     let hex_chars: [char; 16] = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'];
@@ -1066,6 +1327,7 @@ fn write_hex_str(bytes: &[u8], out: &mut String)
     }
 }
 
+#[allow(dead_code)]
 fn to_hex_str(bytes: &[u8]) -> String
 {
     let mut s = String::with_capacity(bytes.len());
