@@ -1448,8 +1448,116 @@ fn day10()
     println!("Product of first three bins: {}", x);
 }
 
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum RTG
+{
+    None,
+    Chip,
+    Gen,
+    Both,
+}
+
+#[derive(Clone, Debug, Eq)]
+pub struct Floor
+{
+    number: u32,
+    polonium: RTG,
+    promethium: RTG,
+    thulium: RTG,
+    ruthenium: RTG,
+    cobalt: RTG,
+}
+
+impl Floor
+{
+    fn polonium(&mut self, rtg: RTG) -> &mut Floor
+    {
+        self.polonium = rtg;
+        self
+    }
+    fn promethium(&mut self, rtg: RTG) -> &mut Floor
+    {
+        self.promethium = rtg;
+        self
+    }
+    fn thulium(&mut self, rtg: RTG) -> &mut Floor
+    {
+        self.thulium = rtg;
+        self
+    }
+    fn ruthenium(&mut self, rtg: RTG) -> &mut Floor
+    {
+        self.ruthenium = rtg;
+        self
+    }
+    fn cobalt(&mut self, rtg: RTG) -> &mut Floor
+    {
+        self.cobalt = rtg;
+        self
+    }
+}
+
+enum Element
+{
+    Po,
+    Pr,
+    Th,
+    Ru,
+    Co,
+}
+
+enum ElevatorSlot
+{
+    Microchip(Element),
+    Generator(Element),
+    Empty,
+}
+
+fn solve_rtgs(plan: &mut [Floor], elevator_position: usize) -> u32
+{
+    let mut elevator = elevator_position;
+    let mut num_steps = 0;
+    let mut slot1 = ElevatorSlot::Empty;
+    let mut slot2 = ElevatorSlot::Empty;
+}
+
 fn day11()
 {
+    let mut initial_floors = [Floor {
+                                  number: 1,
+                                  polonium: RTG::Gen,
+                                  promethium: RTG::Gen,
+                                  thulium: RTG::Both,
+                                  ruthenium: RTG::Both,
+                                  cobalt: RTG::Both,
+                              },
+                              Floor {
+                                  number: 2,
+                                  polonium: RTG::Chip,
+                                  promethium: RTG::Chip,
+                                  thulium: RTG::None,
+                                  ruthenium: RTG::None,
+                                  cobalt: RTG::None,
+                              },
+                              Floor {
+                                  number: 3,
+                                  polonium: RTG::Gen,
+                                  promethium: RTG::None,
+                                  thulium: RTG::None,
+                                  ruthenium: RTG::None,
+                                  cobalt: RTG::None,
+                              },
+                              Floor {
+                                  number: 4,
+                                  polonium: RTG::None,
+                                  promethium: RTG::None,
+                                  thulium: RTG::None,
+                                  ruthenium: RTG::None,
+                                  cobalt: RTG::None,
+                              }];
+
+    println!("Number of steps: {}",
+             solve_rtgs(&mut initial_floors, 0));
 }
 
 fn day12()

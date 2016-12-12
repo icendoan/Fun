@@ -1,4 +1,3 @@
-
 pub mod day1
 {
     pub static DIRECTIONS: &'static str =
@@ -5750,6 +5749,7 @@ pub mod day10
         Logic::Low(72, 9), Logic::High(72, 77),
     ];
 }
+
 pub mod day11 {}
 pub mod day12 {}
 pub mod day13 {}
