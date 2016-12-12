@@ -2,7 +2,7 @@ extern crate crypto;
 use crypto::digest::Digest;
 use crypto::md5;
 
-use std::collections::{HashSet, HashMap};
+use std::collections::{HashSet, HashMap, BTreeMap};
 use std::fmt::{Formatter, Display};
 
 mod statics;
@@ -995,7 +995,6 @@ fn eval_chain(chain: &[DecompressionBlock], position: u64, length: u64) -> u64
     let mut size: u64 = 0;
     // handle each character of the raw base separately, to account for disjoint
     // spans
-    println!("{:?}", chain);
     for p in 0..length
     {
         let mut multiplier = 1;
@@ -1003,10 +1002,6 @@ fn eval_chain(chain: &[DecompressionBlock], position: u64, length: u64) -> u64
         {
             if let &DecompressionBlock::Mul(mul_start, l, m) = block
             {
-                println!("{} >= {}",
-                         l + mul_start,
-                         p + (position - mul_start));
-
                 if l + mul_start > p + (position - mul_start)
                 {
                     multiplier *= m;
@@ -1210,8 +1205,248 @@ fn test_decompressor()
     assert!(decompressed_size("(27x12)(20x12)(13x14)(7x10)(1x12)A") == 241920);
 }
 
+struct Bot
+{
+    id: u32,
+    chip1: Option<u32>,
+    chip2: Option<u32>,
+    high: BotTarget,
+    low: BotTarget,
+}
+
+#[derive(Clone, Copy, Debug)]
+enum BotTarget
+{
+    Bot(u32),
+    Output(u32),
+    None,
+}
+
+#[derive(Clone, Copy, Debug)]
+struct BotComparison
+{
+    bot: u32,
+    low: u32,
+    high: u32,
+}
+
+impl Bot
+{
+    fn new(n: u32) -> Bot
+    {
+        Bot {
+            id: n,
+            chip1: None,
+            chip2: None,
+            high: BotTarget::None,
+            low: BotTarget::None,
+        }
+    }
+    fn chip(&mut self, c: u32) -> &mut Bot
+    {
+        if self.chip1.is_none()
+        {
+            self.chip1 = Some(c);
+        }
+        else if self.chip2.is_none()
+        {
+            self.chip2 = Some(c);
+        }
+        else
+        {
+            println!("Warning: trying to pass a chip to a bot that already has two chips!");
+        }
+
+        self
+
+    }
+    fn high(&mut self, c: BotTarget) -> &mut Bot
+    {
+        self.high = c;
+        self
+    }
+    fn low(&mut self, c: BotTarget) -> &mut Bot
+    {
+        self.low = c;
+        self
+    }
+}
+
+fn set_up_bots(bot_map: &mut BTreeMap<u32, Bot>, logic: &[day10::Logic])
+{
+    for l in logic
+    {
+        match *l
+        {
+            day10::Logic::Give(bot_id, chip) =>
+            {
+                let bot = get_or_insert_mut(bot_map, &bot_id, Bot::new(bot_id));
+                bot.chip(chip);
+            },
+            day10::Logic::High(src, dest) =>
+            {
+                let bot = get_or_insert_mut(bot_map, &src, Bot::new(src));
+                bot.high(BotTarget::Bot(dest));
+            },
+            day10::Logic::Low(src, dest) =>
+            {
+                let bot = get_or_insert_mut(bot_map, &src, Bot::new(src));
+                bot.low(BotTarget::Bot(dest));
+            },
+            day10::Logic::OutputHigh(src, dest) =>
+            {
+                let bot = get_or_insert_mut(bot_map, &src, Bot::new(src));
+                bot.high(BotTarget::Output(dest));
+            },
+            day10::Logic::OutputLow(src, dest) =>
+            {
+                let bot = get_or_insert_mut(bot_map, &src, Bot::new(src));
+                bot.low(BotTarget::Output(dest));
+            },
+        }
+    }
+}
+
+fn eval_bots(bot_map: &mut BTreeMap<u32, Bot>,
+             outputs: &mut BTreeMap<u32, Vec<u32>>,
+             comparisons: &mut Vec<BotComparison>)
+{
+
+    struct Movement
+    {
+        src: u32,
+        dest: BotTarget,
+        chip: u32,
+    }
+
+    let mut movements = Vec::new();
+
+    let mut complete = false;
+    while !complete
+    {
+        complete = true;
+        movements.clear();
+
+        for bot in bot_map.values_mut()
+        {
+            if bot.chip1.is_some() && bot.chip2.is_some()
+            {
+                // we have carried out some comparison in this iteration
+                complete = false;
+
+                let (high, low) = match (bot.chip1.take(), bot.chip2.take())
+                {
+                    (Some(x), Some(y)) if x > y => (x, y),
+                    (Some(x), Some(y)) => (y, x),
+                    _ => unreachable!(),
+                };
+
+                comparisons.push(BotComparison {
+                    bot: bot.id,
+                    high: high,
+                    low: low,
+                });
+
+                movements.push(Movement {
+                    src: bot.id,
+                    dest: bot.high,
+                    chip: high,
+                });
+                movements.push(Movement {
+                    src: bot.id,
+                    dest: bot.low,
+                    chip: low,
+                });
+
+            }
+        }
+
+        for &Movement { ref src, ref dest, ref chip } in &movements
+        {
+            match *dest
+            {
+                BotTarget::Bot(b) =>
+                {
+                    if let Some(bot) = bot_map.get_mut(&b)
+                    {
+                        bot.chip(*chip);
+                    }
+                    else
+                    {
+                        println!("Error: Bot #{} wants to pass high chip to Bot#{}, but it does not \
+                                             exist!",
+                                 src,
+                                 b);
+                    }
+                },
+
+                BotTarget::Output(o) =>
+                {
+                    let output = get_or_insert_mut(outputs, &o, Vec::new());
+                    output.push(*chip);
+                },
+
+                BotTarget::None => return println!("Error: Bot#{} is moving chip #{}, but has no destination!",
+                                                   src,
+                                                   chip),
+            }
+        }
+    }
+}
+
+#[test]
+fn test_bots()
+{
+    let logic = [day10::Logic::Give(2, 5),
+                 day10::Logic::Low(2, 1),
+                 day10::Logic::High(2, 0),
+                 day10::Logic::Give(1, 3),
+                 day10::Logic::OutputLow(1, 1),
+                 day10::Logic::High(1, 0),
+                 day10::Logic::OutputLow(0, 2),
+                 day10::Logic::OutputHigh(0, 0),
+                 day10::Logic::Give(2, 2)];
+    let mut bots = BTreeMap::new();
+    let mut outputs = BTreeMap::new();
+    let mut comparisons = Vec::new();
+
+    set_up_bots(&mut bots, &logic[..]);
+    eval_bots(&mut bots,
+              &mut outputs,
+              &mut comparisons);
+    println!("{:?}", outputs);
+    println!("{:?}", comparisons);
+    let mut expected_outputs = BTreeMap::new();
+    expected_outputs.insert(0, vec![5]);
+    expected_outputs.insert(1, vec![2]);
+    expected_outputs.insert(2, vec![3]);
+    assert!(outputs == expected_outputs)
+}
+
 fn day10()
 {
+    let mut bots = BTreeMap::new();
+    let mut outputs = BTreeMap::new();
+    let mut comparisons = Vec::new();
+
+    set_up_bots(&mut bots, &day10::LOGIC[..]);
+    eval_bots(&mut bots,
+              &mut outputs,
+              &mut comparisons);
+
+    for cmp in comparisons
+    {
+        if cmp.high == 61 && cmp.low == 17
+        {
+            print!("Bot comparing 61 to 17: #{} ", cmp.bot);
+        }
+    }
+
+    let mut x: u32 = *outputs.get(&0).unwrap().get(0).unwrap();
+    x *= *outputs.get(&1).unwrap().get(0).unwrap();
+    x *= *outputs.get(&2).unwrap().get(0).unwrap();
+
+    println!("Product of first three bins: {}", x);
 }
 fn day11()
 {
@@ -1333,4 +1568,17 @@ fn to_hex_str(bytes: &[u8]) -> String
     let mut s = String::with_capacity(bytes.len());
     write_hex_str(bytes, &mut s);
     s
+}
+
+fn get_or_insert_mut<'a, 'b: 'a, S: Ord + Clone, T>(map: &'a mut BTreeMap<S, T>, key: &'b S, alt: T) -> &'a mut T
+{
+    if map.contains_key(key)
+    {
+        map.get_mut(key).unwrap()
+    }
+    else
+    {
+        map.insert(key.clone(), alt);
+        map.get_mut(key).unwrap()
+    }
 }
