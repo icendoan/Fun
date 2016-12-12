@@ -1002,13 +1002,12 @@ fn eval_chain(chain: &[DecompressionBlock], position: u64, length: u64) -> u64
         {
             if let &DecompressionBlock::Mul(mul_start, l, m) = block
             {
-                if l + mul_start > p + (position - mul_start)
+                if mul_start + l > position + p - length
                 {
                     multiplier *= m;
                 }
             }
         }
-
         size += multiplier;
     }
 
@@ -1021,10 +1020,10 @@ fn decompressed_size(txt: &str) -> u64
     let mut position = 0;
     for block in txt.split(|x| x == '(' || x == ')')
     {
-        position += block.len() as u64;
+        position += 1 + block.len() as u64;
         if let Some((len, count)) = parse_marker(block)
         {
-            blocks.push(DecompressionBlock::Mul(position, len as u64, count as u64));
+            blocks.push(DecompressionBlock::Mul(position + 1, len as u64, count as u64));
         }
         else
         {
@@ -1034,7 +1033,6 @@ fn decompressed_size(txt: &str) -> u64
 
     let mut size: u64 = 0;
     let mut active = Vec::new();
-    position = 0;
 
     for block in blocks
     {
@@ -1197,12 +1195,13 @@ fn test_decompressor()
     let d4 = Decompressor::new("A(2x2)BCD(2x2)EFG");
     let o4: Vec<_> = d4.collect();
     assert!(o4 == vec!["A", "BC", "BC", "D", "EF", "EF", "G"]);
-
     let o5 = decompressed_size("(3x3)XYZ");
-    println!("{}", o5);
     assert!(o5 == 9);
-    assert!(decompressed_size("X(8x2)(3x3)ABCY") == "XABCABCABCABCABCABCY".len() as u64);
+    let o6 = decompressed_size("X(8x2)(3x3)ABCY");
+    assert!(o6 == 20);
     assert!(decompressed_size("(27x12)(20x12)(13x14)(7x10)(1x12)A") == 241920);
+    let o7 = decompressed_size("(25x3)(3x3)ABC(2x3)XY(5x2)PQRSTX(18x9)(3x2)TWO(5x7)SEVEN");
+    assert!(o7 == 445);
 }
 
 struct Bot
@@ -1448,9 +1447,11 @@ fn day10()
 
     println!("Product of first three bins: {}", x);
 }
+
 fn day11()
 {
 }
+
 fn day12()
 {
 }
