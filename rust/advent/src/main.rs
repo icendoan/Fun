@@ -1449,8 +1449,20 @@ impl PartialEq for FloorPlan
 {
 	fn eq(&self, other: &FloorPlan) -> bool
 	{
-		self.po == other.po && self.th == other.th && self.pr == other.pr && self.ru == other.ru &&
-		self.co == other.co && self.fl == other.fl
+		let mut s_psn = [(self.po[0], self.po[1]),
+		                 (self.th[0], self.th[1]),
+		                 (self.pr[0], self.pr[1]),
+		                 (self.ru[0], self.ru[1]),
+		                 (self.co[0], self.co[1])];
+		let mut o_psn = [(other.po[0], other.po[1]),
+		                 (other.th[0], other.th[1]),
+		                 (other.pr[0], other.pr[1]),
+		                 (other.ru[0], other.ru[1]),
+		                 (other.co[0], other.co[1])];
+
+		s_psn.sort();
+		o_psn.sort();
+		self.fl == other.fl && s_psn == o_psn
 	}
 }
 
@@ -1628,28 +1640,28 @@ impl FloorPlan
 	fn compare(&self, other: &FloorPlan) -> cmp::Ordering
 	{
 		let mut self_val: u64 = self.steps as u64;
-		self_val += (4 - cmp::min(4, self.pr[0])) as u64;
-		self_val += (4 - cmp::min(4, self.pr[1])) as u64;
-		self_val += (4 - cmp::min(4, self.ru[0])) as u64;
-		self_val += (4 - cmp::min(4, self.ru[1])) as u64;
-		self_val += (4 - cmp::min(4, self.th[0])) as u64;
-		self_val += (4 - cmp::min(4, self.th[1])) as u64;
-		self_val += (4 - cmp::min(4, self.po[0])) as u64;
-		self_val += (4 - cmp::min(4, self.po[1])) as u64;
-		self_val += (4 - cmp::min(4, self.co[0])) as u64;
-		self_val += (4 - cmp::min(4, self.co[1])) as u64;
+		// self_val += (4 - cmp::min(4, self.pr[0])) as u64;
+		// self_val += (4 - cmp::min(4, self.pr[1])) as u64;
+		// self_val += (4 - cmp::min(4, self.ru[0])) as u64;
+		// self_val += (4 - cmp::min(4, self.ru[1])) as u64;
+		// self_val += (4 - cmp::min(4, self.th[0])) as u64;
+		// self_val += (4 - cmp::min(4, self.th[1])) as u64;
+		// self_val += (4 - cmp::min(4, self.po[0])) as u64;
+		// self_val += (4 - cmp::min(4, self.po[1])) as u64;
+		// self_val += (4 - cmp::min(4, self.co[0])) as u64;
+		// self_val += (4 - cmp::min(4, self.co[1])) as u64;
 
 		let mut other_val: u64 = other.steps as u64;
-		other_val += (4 - cmp::min(4, other.pr[0])) as u64;
-		other_val += (4 - cmp::min(4, other.pr[1])) as u64;
-		other_val += (4 - cmp::min(4, other.ru[0])) as u64;
-		other_val += (4 - cmp::min(4, other.ru[1])) as u64;
-		other_val += (4 - cmp::min(4, other.th[0])) as u64;
-		other_val += (4 - cmp::min(4, other.th[1])) as u64;
-		other_val += (4 - cmp::min(4, other.po[0])) as u64;
-		other_val += (4 - cmp::min(4, other.po[1])) as u64;
-		other_val += (4 - cmp::min(4, other.co[0])) as u64;
-		other_val += (4 - cmp::min(4, other.co[1])) as u64;
+		// other_val += (4 - cmp::min(4, other.pr[0])) as u64;
+		// other_val += (4 - cmp::min(4, other.pr[1])) as u64;
+		// other_val += (4 - cmp::min(4, other.ru[0])) as u64;
+		// other_val += (4 - cmp::min(4, other.ru[1])) as u64;
+		// other_val += (4 - cmp::min(4, other.th[0])) as u64;
+		// other_val += (4 - cmp::min(4, other.th[1])) as u64;
+		// other_val += (4 - cmp::min(4, other.po[0])) as u64;
+		// other_val += (4 - cmp::min(4, other.po[1])) as u64;
+		// other_val += (4 - cmp::min(4, other.co[0])) as u64;
+		// other_val += (4 - cmp::min(4, other.co[1])) as u64;
 
 		// self_val.cmp(&other_val)
 		other_val.cmp(&self_val)
@@ -1693,6 +1705,18 @@ fn test_floorplan()
 		co: [5, 5],
 		steps: 0,
 	};
+
+	let equivalent_plan = FloorPlan {
+		fl: 1,
+		po: [1, 3],
+		th: [1, 2],
+		pr: [5, 5],
+		ru: [5, 5],
+		co: [5, 5],
+		steps: 0,
+	};
+
+	assert!(equivalent_plan == starting_plan);
 
 	let finished_plan = FloorPlan {
 		fl: 4,
