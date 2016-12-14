@@ -1,4 +1,5 @@
 #![allow(dead_code)]
+#![feature(slice_patterns)]
 
 extern crate crypto;
 use crypto::digest::Digest;
@@ -1286,6 +1287,8 @@ struct FloorPlan
     pr: [u8; 2],
     ru: [u8; 2],
     co: [u8; 2],
+    el: [u8; 2],
+    di: [u8; 2],
     fl: u8,
     steps: u32,
 }
@@ -1314,12 +1317,16 @@ impl Ord for FloorPlan
                          (self.th[0], self.th[1]),
                          (self.pr[0], self.pr[1]),
                          (self.ru[0], self.ru[1]),
-                         (self.co[0], self.co[1])];
+                         (self.co[0], self.co[1]),
+                         (self.el[0], self.el[1]),
+                         (self.di[0], self.di[1])];
         let mut o_psn = [(other.po[0], other.po[1]),
                          (other.th[0], other.th[1]),
                          (other.pr[0], other.pr[1]),
                          (other.ru[0], other.ru[1]),
-                         (other.co[0], other.co[1])];
+                         (other.co[0], other.co[1]),
+                         (other.el[0], other.el[1]),
+                         (other.di[0], other.di[1])];
 
         s_psn.sort();
         o_psn.sort();
@@ -1367,6 +1374,16 @@ impl FloorPlan
             } else {
                 "    "
             });
+            s.push_str(if self.el[0] == i {
+                "ElC "
+            } else {
+                "    "
+            });
+            s.push_str(if self.di[0] == i {
+                "DiC "
+            } else {
+                "    "
+            });
             s.push_str(if self.po[1] == i {
                 "PoG "
             } else {
@@ -1392,6 +1409,17 @@ impl FloorPlan
             } else {
                 "    "
             });
+            s.push_str(if self.el[1] == i {
+                "ElG "
+            } else {
+                "    "
+            });
+            s.push_str(if self.di[1] == i {
+                "DiG "
+            } else {
+                "    "
+            });
+
             s.push('\n');
         }
         s
@@ -1400,7 +1428,9 @@ impl FloorPlan
     fn is_solved(&self) -> bool
     {
         self.po[0] >= 4 && self.po[1] >= 4 && self.th[0] >= 4 && self.th[1] >= 4 && self.pr[0] >= 4 &&
-        self.pr[1] >= 4 && self.ru[0] >= 4 && self.ru[1] >= 4 && self.co[0] >= 4 && self.co[1] >= 4
+        self.pr[1] >= 4 && self.ru[0] >= 4 && self.ru[1] >= 4 &&
+        self.co[0] >= 4 && self.co[1] >= 4 && self.el[0] >= 4 && self.el[1] >= 4 && self.di[0] >= 4 &&
+        self.di[1] >= 4
     }
 
     fn get_floor(&self, floor: u8) -> BitField16
@@ -1411,11 +1441,15 @@ impl FloorPlan
         field.set(2, self.pr[0] == floor);
         field.set(3, self.ru[0] == floor);
         field.set(4, self.co[0] == floor);
-        field.set(5, self.po[1] == floor);
-        field.set(6, self.th[1] == floor);
-        field.set(7, self.pr[1] == floor);
-        field.set(8, self.ru[1] == floor);
-        field.set(9, self.co[1] == floor);
+        field.set(5, self.el[0] == floor);
+        field.set(6, self.di[0] == floor);
+        field.set(7, self.po[1] == floor);
+        field.set(8, self.th[1] == floor);
+        field.set(9, self.pr[1] == floor);
+        field.set(10, self.ru[1] == floor);
+        field.set(11, self.co[1] == floor);
+        field.set(12, self.el[1] == floor);
+        field.set(13, self.di[1] == floor);
 
         field
     }
@@ -1426,8 +1460,8 @@ impl FloorPlan
             let mut vuln = false;
             let mut has_rtg = false;
             let floor = self.get_floor(floor);
-            for component in 0..5 {
-                vuln |= floor.get(component) && !floor.get(component + 5);
+            for component in 0..7 {
+                vuln |= floor.get(component) && !floor.get(component + 7);
                 has_rtg |= floor.get(component + 5);
             }
 
@@ -1440,18 +1474,20 @@ impl FloorPlan
 
     fn from_floor_index_mut(&mut self, index: u8) -> &mut u8
     {
-        let i = if index > 4 {
+        let i = if index > 6 {
             1
         } else {
             0
         };
 
-        match index % 5 {
+        match index % 7 {
             0 => &mut self.po[i],
             1 => &mut self.th[i],
             2 => &mut self.pr[i],
             3 => &mut self.ru[i],
             4 => &mut self.co[i],
+            5 => &mut self.el[i],
+            6 => &mut self.di[i],
             _ => unreachable!(),
         }
     }
@@ -1459,18 +1495,20 @@ impl FloorPlan
 
     fn from_floor_index(&self, index: u8) -> u8
     {
-        let i = if index > 4 {
+        let i = if index > 6 {
             1
         } else {
             0
         };
 
-        match index % 5 {
+        match index % 7 {
             0 => self.po[i],
             1 => self.th[i],
             2 => self.pr[i],
             3 => self.ru[i],
             4 => self.co[i],
+            5 => self.el[i],
+            6 => self.di[i],
             _ => unreachable!(),
         }
     }
@@ -1479,7 +1517,7 @@ impl FloorPlan
     {
         let on_this_floor = self.get_floor(self.fl);
 
-        for x in 0..10 {
+        for x in 0..14 {
             if !on_this_floor.get(x) {
                 continue;
             }
@@ -1494,7 +1532,7 @@ impl FloorPlan
                 }
                 *floor.from_floor_index_mut(x) -= 1;
 
-                for y in 0..10 {
+                for y in 0..14 {
                     if !on_this_floor.get(y) || x == y {
                         continue;
                     }
@@ -1518,7 +1556,7 @@ impl FloorPlan
                 floor.fl += 1;
                 *floor.from_floor_index_mut(x) += 1;
 
-                for y in 0..10 {
+                for y in 0..14 {
                     if !on_this_floor.get(y) || x == y {
                         continue;
                     }
@@ -1539,33 +1577,7 @@ impl FloorPlan
 
     fn compare(&self, other: &FloorPlan) -> cmp::Ordering
     {
-        let mut self_val: u64 = self.steps as u64;
-        self_val += (4 - cmp::min(4, self.pr[0])) as u64;
-        self_val += (4 - cmp::min(4, self.pr[1])) as u64;
-        self_val += (4 - cmp::min(4, self.ru[0])) as u64;
-        self_val += (4 - cmp::min(4, self.ru[1])) as u64;
-        self_val += (4 - cmp::min(4, self.th[0])) as u64;
-        self_val += (4 - cmp::min(4, self.th[1])) as u64;
-        self_val += (4 - cmp::min(4, self.po[0])) as u64;
-        self_val += (4 - cmp::min(4, self.po[1])) as u64;
-        self_val += (4 - cmp::min(4, self.co[0])) as u64;
-        self_val += (4 - cmp::min(4, self.co[1])) as u64;
-        self_val += (4 - self.fl) as u64;
-
-        let mut other_val: u64 = other.steps as u64;
-        other_val += (4 - cmp::min(4, other.pr[0])) as u64;
-        other_val += (4 - cmp::min(4, other.pr[1])) as u64;
-        other_val += (4 - cmp::min(4, other.ru[0])) as u64;
-        other_val += (4 - cmp::min(4, other.ru[1])) as u64;
-        other_val += (4 - cmp::min(4, other.th[0])) as u64;
-        other_val += (4 - cmp::min(4, other.th[1])) as u64;
-        other_val += (4 - cmp::min(4, other.po[0])) as u64;
-        other_val += (4 - cmp::min(4, other.po[1])) as u64;
-        other_val += (4 - cmp::min(4, other.co[0])) as u64;
-        other_val += (4 - cmp::min(4, other.co[1])) as u64;
-        other_val += (4 - other.fl) as u64;
-
-        other_val.cmp(&self_val) // this is backwards, but using vecs
+        other.steps.cmp(&self.steps)
     }
 }
 
@@ -1583,13 +1595,9 @@ fn solve_floorplan(input_plan: FloorPlan) -> u32
     let mut plans = Vec::new();
     let mut seen_plans = BTreeSet::new();
     while !plan.is_solved() {
-        println!("Current plan: {}", plan);
         plan.push_adjacent(&mut plans);
         seen_plans.insert(plan);
         plans.retain(|x| !seen_plans.contains(x));
-        println!("Number of plans to test: {}, seen plans: {}",
-                 plans.len(),
-                 seen_plans.len());
         plans.as_mut_slice().sort_by(FloorPlan::compare);
         plan = plans.pop().expect("Floorplan has no solution!");
     }
@@ -1607,6 +1615,8 @@ fn test_floorplan()
         pr: [5, 5],
         ru: [5, 5],
         co: [5, 5],
+        el: [5, 5],
+        di: [5, 5],
         steps: 0,
     };
 
@@ -1617,6 +1627,8 @@ fn test_floorplan()
         pr: [5, 5],
         ru: [5, 5],
         co: [5, 5],
+        el: [5, 5],
+        di: [5, 5],
         steps: 0,
     };
 
@@ -1634,6 +1646,8 @@ fn test_floorplan()
         pr: [5, 5],
         ru: [5, 5],
         co: [5, 5],
+        el: [5, 5],
+        di: [5, 5],
         steps: 0,
     };
 
@@ -1643,8 +1657,8 @@ fn test_floorplan()
     assert!(first_floor.num_set() == 2);
     assert!(first_floor.get(0));
     assert!(first_floor.get(1));
-    assert!(starting_plan.from_floor_index(6) == 3);
-    assert!(starting_plan.from_floor_index(5) == 2);
+    assert!(starting_plan.from_floor_index(8) == 3);
+    assert!(starting_plan.from_floor_index(7) == 2);
     assert!(starting_plan.from_floor_index(2) == 5);
 
     let mut plan_2 = starting_plan.clone();
@@ -1659,6 +1673,8 @@ fn test_floorplan()
         pr: [5, 5],
         ru: [5, 5],
         co: [5, 5],
+        el: [5, 5],
+        di: [5, 5],
         steps: 1,
     };
 
@@ -1681,6 +1697,8 @@ fn test_floorplan()
         pr: [5, 5],
         ru: [5, 5],
         co: [5, 5],
+        el: [5, 5],
+        di: [5, 5],
         steps: 1,
     });
 
@@ -1690,6 +1708,8 @@ fn test_floorplan()
                 pr: [5, 5],
                 ru: [5, 5],
                 co: [5, 5],
+                el: [5, 5],
+                di: [5, 5],
                 fl: 2,
                 steps: 1,
             })
@@ -1701,26 +1721,219 @@ fn test_floorplan()
     let num_steps = solve_floorplan(starting_plan);
     println!("{}", num_steps);
     assert!(num_steps == 11);
+
+    // this test is valuable, but very very slow
+    // so it is disabled
+    //
+    // let second_plan = FloorPlan {
+    // fl: 1,
+    // po: [2, 1],
+    // th: [1, 1],
+    // pr: [2, 1],
+    // ru: [1, 1],
+    // co: [1, 1],
+    // el: [5, 5],
+    // di: [5, 5],
+    // steps: 0,
+    // };
+    //
+    // let num_steps2 = solve_floorplan(second_plan);
+    // assert!(num_steps2 == 47);
+    //
 }
 
 fn day11()
 {
-    let plan = FloorPlan {
+    let first_plan = FloorPlan {
         fl: 1,
         po: [2, 1],
         th: [1, 1],
         pr: [2, 1],
         ru: [1, 1],
         co: [1, 1],
+        el: [5, 5],
+        di: [5, 5],
         steps: 0,
     };
 
-    let num_steps = solve_floorplan(plan);
-    println!("Minimum number of steps: {}", num_steps);
+    let second_plan = FloorPlan {
+        fl: 1,
+        po: [2, 1],
+        th: [1, 1],
+        pr: [2, 1],
+        ru: [1, 1],
+        co: [1, 1],
+        el: [1, 1],
+        di: [1, 1],
+        steps: 0,
+    };
+
+    println!("Minimum number of steps: {}, including the extra RTGS: {}",
+             solve_floorplan(first_plan),
+             solve_floorplan(second_plan));
+}
+
+fn eval_asb(asb: &[day12::ASB], regs: &mut [i64; 4])
+{
+    let mut ip: usize = 0;
+    while ip < asb.len() {
+        ip = asb_step(asb, regs, ip);
+    }
+}
+
+fn asb_step(asb: &[day12::ASB], regs: &mut [i64; 4], ip: usize) -> usize
+{
+    if ip > asb.len() {
+        return ip;
+    }
+
+    match asb[ip] {
+        day12::ASB::Cpy(v, r) => regs[asb_reg_idx(r)] = asb_val(v, regs),
+        day12::ASB::Inc(r) => regs[asb_reg_idx(r)] += 1,
+        day12::ASB::Dec(r) => regs[asb_reg_idx(r)] -= 1,
+        day12::ASB::JNZ(v, x) if asb_val(v, regs) != 0 => {
+            return if x < 0 {
+                ip - x.abs() as usize
+            } else {
+                ip + x as usize
+            }
+        },
+        day12::ASB::JNZ(_, _) => (),
+    }
+
+    ip + 1
+}
+
+fn asb_reg_idx(x: day12::Reg) -> usize
+{
+    match x {
+        day12::Reg::A => 0,
+        day12::Reg::B => 1,
+        day12::Reg::C => 2,
+        day12::Reg::D => 3,
+    }
+}
+
+fn asb_val(v: day12::Val, regs: &[i64; 4]) -> i64
+{
+    match v {
+        day12::Val::Reg(r) => regs[asb_reg_idx(r)],
+        day12::Val::Lit(x) => x,
+    }
+}
+
+enum ASB
+{
+    MovL(i64, usize),
+    MovR(usize, usize),
+    Jmp(i32),
+    Jnz(usize, i32),
+    Add(usize, usize), // adds y to x, sets y to zero
+    Sub(usize, usize), // subs y from x, sets y to zero
+    NoOp,
+}
+
+fn asb_opt(src: &[day12::ASB]) -> Vec<ASB>
+{
+    let mut v = Vec::new();
+    let mut skip = 0;
+    for w in src.windows(3) {
+        if skip > 0 {
+            skip -= 1;
+            continue;
+        }
+
+        match w {
+            &[day12::ASB::Inc(r1), day12::ASB::Dec(r2), day12::ASB::JNZ(r3, -2)] if r2 == r3 => {
+                v.push(ASB::NoOp);
+                v.push(ASB::NoOp);
+                v.push(ASB::Add(asb_reg_idx(r1), asb_reg_idx(r2)));
+                skip = 2;
+            },
+
+            &[day12::ASB::Inc(r1), day12::ASB::Dec(r2), day12::ASB::JNZ(r3, -2)] if r1 == r3 => {
+                v.push(ASB::NoOp);
+                v.push(ASB::NoOp);
+                v.push(ASB::Sub(asb_reg_idx(r1), asb_reg_idx(r2)));
+                skip = 2;
+            },
+
+            &[day12::ASB::Dec(r2), day12::ASB::Inc(r1), day12::ASB::JNZ(r3, -2)] if r2 == r3 => {
+                v.push(ASB::NoOp);
+                v.push(ASB::NoOp);
+                v.push(ASB::Add(asb_reg_idx(r1), asb_reg_idx(r2)));
+                skip = 2;
+            },
+
+            &[day12::ASB::Dec(r2), day12::ASB::Inc(r1), day12::ASB::JNZ(r3, -2)] if r1 == r3 => {
+                v.push(ASB::NoOp);
+                v.push(ASB::NoOp);
+                v.push(ASB::Sub(asb_reg_idx(r1), asb_reg_idx(r2)));
+                skip = 2;
+            },
+
+            &[day12::ASB::JNZ(day12::Val::Lit(x), y), _, _] => {
+                if x != 0 {
+                    v.push(ASB::Jmp(y));
+                } else {
+                    v.push(ASB::NoOp);
+                }
+            },
+
+            &[day12::ASB::Cpy(day12::Val::Lit(x), r), _, _] => {
+                v.push(ASB::MovL(x, asb_reg_idx(r)));
+            },
+
+            &[day12::ASB::Cpy(day12::Val::Reg(r1), r2), _, _] => {
+                v.push(ASB::MovR(asb_reg_idx(r1), asb_reg_idx(r2)));
+            },
+        }
+    }
+    v
+}
+
+#[test]
+fn test_asb()
+{
+    let mut regs = [0; 4];
+    let code = [day12::ASB::Cpy(day12::Val::Lit(41), day12::Reg::A),
+                day12::ASB::Inc(day12::Reg::A),
+                day12::ASB::Inc(day12::Reg::A),
+                day12::ASB::Dec(day12::Reg::A),
+                day12::ASB::JNZ(day12::Val::Reg(day12::Reg::A), 2),
+                day12::ASB::Dec(day12::Reg::A)];
+
+    let mut ip = 0;
+    assert!(ip == 0 && regs == [0, 0, 0, 0]);
+    ip = asb_step(&code[..], &mut regs, ip);
+    assert!(ip == 1 && regs == [41, 0, 0, 0]);
+    ip = asb_step(&code[..], &mut regs, ip);
+    assert!(ip == 2 && regs == [42, 0, 0, 0]);
+    ip = asb_step(&code[..], &mut regs, ip);
+    assert!(ip == 3 && regs == [43, 0, 0, 0]);
+    ip = asb_step(&code[..], &mut regs, ip);
+    assert!(ip == 4 && regs == [42, 0, 0, 0]);
+    ip = asb_step(&code[..], &mut regs, ip);
+    assert!(ip == 6 && regs == [42, 0, 0, 0]);
+
+    assert!(1 ==
+            asb_step(&[day12::ASB::JNZ(day12::Val::Lit(1), -1); 3][..],
+                     &mut [0, 0, 0, 0],
+                     2));
+    asb_step(&[day12::ASB::Cpy(day12::Val::Reg(day12::Reg::A),
+                               day12::Reg::B)][..],
+             &mut regs,
+             0);
+    assert!(regs == [42, 42, 0, 0]);
+
 }
 
 fn day12()
 {
+    let mut regs = [0; 4];
+    eval_asb(&day12::CODE[..], &mut regs);
+    println!("Registers: {:?}", regs);
+    println!("Value of register A: {}", regs[0]);
 }
 fn day13()
 {
