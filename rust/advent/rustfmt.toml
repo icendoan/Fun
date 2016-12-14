@@ -1,18 +1,167 @@
-max_width = 120
-ideal_width = 80
-tab_spaces = 4
-fn_call_width = 40
-struct_lit_width = 20
-newline_style = "Unix"
+# verbose <boolean> Default: false
+# Use verbose output
+
+# skip_children <boolean> Default: false
+# Don't reformat out of line modules
+
+# max_width <unsigned integer> Default: 100
+# Maximum width of each line
+max_width = 100
+
+# ideal_width <unsigned integer> Default: 80
+# Ideal width of each line
+
+# tab_spaces <unsigned integer> Default: 4
+# Number of spaces per tab
+tab_spaces = 3
+
+# fn_call_width <unsigned integer> Default: 60
+# Maximum width of the args of a function call before falling back to vertical formatting
+
+# struct_lit_width <unsigned integer> Default: 16
+# Maximum width in the body of a struct lit before falling back to vertical formatting
+
+# force_explicit_abi <boolean> Default: true
+# Always print the abi for extern items
+
+# newline_style [Windows|Unix|Native] Default: Unix
+# Unix or Windows line endings
+
+# fn_brace_style [AlwaysNextLine|PreferSameLine|SameLineWhere] Default: SameLineWhere
+# Brace style for functions
 fn_brace_style = "AlwaysNextLine"
+
+# item_brace_style [AlwaysNextLine|PreferSameLine|SameLineWhere] Default: SameLineWhere
+# Brace style for structs and enums
 item_brace_style = "AlwaysNextLine"
+
+# else_if_brace_style [AlwaysSameLine|ClosingNextLine|AlwaysNextLine] Default: AlwaysSameLine
+# Brace style for if, else if, and else constructs
 else_if_brace_style = "AlwaysNextLine"
+
+# control_brace_style [AlwaysSameLine|AlwaysNextLine] Default: AlwaysSameLine
+# Brace style for match, loop, for, and while constructs
 control_brace_style = "AlwaysNextLine"
-fn_return_indent = "WithArgs"
-fn_args_paren_newline = true
-struct_trailing_comma = "Vertical"
+
+# impl_empty_single_line <boolean> Default: true
+# Put empty-body implementations on a single line
+
+# fn_empty_single_line <boolean> Default: true
+# Put empty-body functions on a single line
+
+# fn_single_line <boolean> Default: false
+# Put single-expression functions on a single line
+
+# fn_return_indent [WithArgs|WithWhereClause] Default: WithArgs
+# Location of return type in function declaration
+
+# fn_args_paren_newline <boolean> Default: true
+# If function argument parenthesis goes on a newline
+
+# fn_args_density [Compressed|Tall|CompressedIfEmpty|Vertical] Default: Tall
+# Argument density in functions
+
+# fn_args_layout [Visual|Block|BlockAlways] Default: Visual
+# Layout of function arguments
+
+# fn_arg_indent [Inherit|Tabbed|Visual] Default: Visual
+# Indent on function arguments
+
+# type_punctuation_density [Compressed|Wide] Default: Wide
+# Determines if '+' or '=' are wrapped in spaces in the punctuation of types
+
+# where_density [Compressed|Tall|CompressedIfEmpty|Vertical] Default: CompressedIfEmpty
+# Density of a where clause
+
+# where_indent [Inherit|Tabbed|Visual] Default: Tabbed
+# Indentation of a where clause
+
+# where_layout [Vertical|Horizontal|HorizontalVertical|Mixed] Default: Vertical
+# Element layout inside a where clause
+
+# where_pred_indent [Inherit|Tabbed|Visual] Default: Visual
+# Indentation style of a where predicate
+
+# where_trailing_comma <boolean> Default: false
+# Put a trailing comma on where clauses
+
+# generics_indent [Inherit|Tabbed|Visual] Default: Visual
+# Indentation of generics
+
+# struct_trailing_comma [Always|Never|Vertical] Default: Vertical
+# If there is a trailing comma on structs
+
+# struct_lit_trailing_comma [Always|Never|Vertical] Default: Vertical
+# If there is a trailing comma on literal structs
+
+# struct_lit_style [Visual|Block] Default: Block
+# Style of struct definition
+
+# struct_lit_multiline_style [PreferSingle|ForceMulti] Default: PreferSingle
+# Multiline style on literal structs
+
+# enum_trailing_comma <boolean> Default: true
+# Put a trailing comma on enum declarations
+
+# report_todo [Always|Unnumbered|Never] Default: Never
+# Report all, none or unnumbered occurrences of TODO in source file comments
+
+# report_fixme [Always|Unnumbered|Never] Default: Never
+# Report all, none or unnumbered occurrences of FIXME in source file comments
+
+# chain_base_indent [Inherit|Tabbed|Visual] Default: Tabbed
+# Indent on chain base
+
+# chain_indent [Inherit|Tabbed|Visual] Default: Tabbed
+# Indentation of chain
+
+# chains_overflow_last <boolean> Default: true
+# Allow last call in method chain to break the line
+
+# reorder_imports <boolean> Default: false
+# Reorder import statements alphabetically
+
+# single_line_if_else <boolean> Default: false
+# Put else on same line as closing brace for if statements
+
+# format_strings <boolean> Default: true
+# Format string literals where necessary
+
+# force_format_strings <boolean> Default: false
+# Always format string literals
+force_format_strings = true
+
+# take_source_hints <boolean> Default: true
+# Retain some formatting characteristics from the source code
+
+# hard_tabs <boolean> Default: false
+# Use tab characters for indentation, spaces for alignment
+hard_tabs = true
+
+# wrap_comments <boolean> Default: false
+# Break comments to fit on the line
 wrap_comments = true
-report_todo = "Always"
-report_fixme = "Always"
-reorder_imports = true
+
+# normalise_comments <boolean> Default: true
+# Convert /* */ comments to // comments where possible
+
+# wrap_match_arms <boolean> Default: true
+# Wrap multiline match arms in blocks
+
+# match_block_trailing_comma <boolean> Default: false
+# Put a trailing comma after a block based match arm (non-block arms are not affected)
 match_block_trailing_comma = true
+
+# match_wildcard_trailing_comma <boolean> Default: true
+# Put a trailing comma after a wildcard arm
+
+# closure_block_indent_threshold<signed integer> Default: 5
+# How many lines a closure must have before it is block indented. -1 means never use block indent.
+
+# use_try_shorthand <boolean> Default: false
+# Replace uses of the try! macro by the ? shorthand
+use_try_shorthand = true
+
+# write_mode [Replace|Overwrite|Display|Diff|Coverage|Plain|Checkstyle] Default: Replace
+# What Write Mode to use when none is supplied: Replace, Overwrite, Display, Diff, Coverage
+

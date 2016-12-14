@@ -7917,14 +7917,14 @@ pub mod day10 {
 
 pub mod day11 {}
 pub mod day12 {
-    #[derive(Copy, Clone, Debug)]
+    #[derive(Copy, Clone, Debug, PartialEq, Eq)]
     pub enum Val
     {
         Reg(Reg),
         Lit(i64),
     }
 
-    #[derive(Copy, Clone, Debug)]
+    #[derive(Copy, Clone, Debug, PartialEq, Eq)]
     pub enum Reg
     {
         A,
@@ -7933,7 +7933,7 @@ pub mod day12 {
         D,
     }
 
-    #[derive(Copy, Clone, Debug)]
+    #[derive(Copy, Clone, Debug, PartialEq, Eq)]
     pub enum ASB
     {
         Cpy(Val, Reg),

@@ -4,67 +4,20 @@
 extern crate crypto;
 use crypto::digest::Digest;
 use crypto::md5;
+use std::cmp;
 
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::fmt::{self, Display, Formatter};
-use std::cmp;
 
 mod statics;
 use statics::*;
 
 fn main()
 {
-    print!("Day 1: ");
-    day1();
-    print!("Day 2: ");
-    day2();
-    print!("Day 3: ");
-    day3();
-    print!("Day 4: ");
-    day4();
-    print!("Day 5: ");
-    day5();
-    print!("Day 6: ");
-    day6();
-    print!("Day 7: ");
-    day7();
-    print!("Day 8: ");
-    day8();
-    print!("Day 9: ");
-    day9();
-    print!("Day 10: ");
-    day10();
-    print!("Day 11: ");
-    day11();
-    print!("Day 12: ");
-    day12();
-    print!("Day 13: ");
-    day13();
-    print!("Day 14: ");
-    day14();
-    print!("Day 15: ");
-    day15();
-    print!("Day 16: ");
-    day16();
-    print!("Day 17: ");
-    day17();
-    print!("Day 18: ");
-    day18();
-    print!("Day 19: ");
-    day19();
-    print!("Day 20: ");
-    day20();
-    print!("Day 21: ");
-    day21();
-    print!("Day 22: ");
-    day22();
-    print!("Day 23: ");
-    day23();
-    print!("Day 24: ");
-    day24();
-    print!("Day 25: ");
-    day25();
-    println!("");
+    let fns = [main, day1, day2, day3, day4, day5, day6, day7, day8, day9, day10, day11, day12, day13, day14, day15,
+               day16, day17, day18, day19, day20, day21, day22, day23, day24, day25];
+
+    fns[12]();
 }
 
 #[derive(Copy,Clone)]
@@ -79,7 +32,8 @@ impl D
 {
     fn left(&mut self)
     {
-        *self = match *self {
+        *self = match *self
+        {
             D::N => D::W,
             D::W => D::S,
             D::S => D::E,
@@ -88,7 +42,8 @@ impl D
     }
     fn right(&mut self)
     {
-        *self = match *self {
+        *self = match *self
+        {
             D::N => D::E,
             D::E => D::S,
             D::S => D::W,
@@ -103,7 +58,8 @@ impl Display for D
     {
         write!(f,
                "{}",
-               match *self {
+               match *self
+               {
                    D::N => "North",
                    D::W => "West",
                    D::S => "South",
@@ -123,29 +79,38 @@ impl Loc
 {
     fn movn(&mut self, instr: &str, visited: &mut HashSet<(i64, i64)>) -> Option<(i64, i64)>
     {
-        let len = if let Ok(n) = i64::from_str_radix(&instr[1..], 10) {
+        let len = if let Ok(n) = i64::from_str_radix(&instr[1..], 10)
+        {
             n
-        } else {
+        }
+        else
+        {
             return None;
         };
 
-        if instr.starts_with('R') {
+        if instr.starts_with('R')
+        {
             self.dir.right()
-        } else if instr.starts_with('L') {
+        }
+        else if instr.starts_with('L')
+        {
             self.dir.left()
         }
 
         let mut first_revisited = None;
 
-        for _ in 0..len {
-            match self.dir {
+        for _ in 0..len
+        {
+            match self.dir
+            {
                 D::N => self.y += 1,
                 D::S => self.y -= 1,
                 D::E => self.x += 1,
                 D::W => self.x -= 1,
             }
 
-            if !visited.insert((self.x, self.y)) && first_revisited.is_none() {
+            if !visited.insert((self.x, self.y)) && first_revisited.is_none()
+            {
                 first_revisited = Some((self.x, self.y));
             }
         }
@@ -158,6 +123,7 @@ impl Loc
 
 fn day1()
 {
+
     let mut visited = HashSet::new();
     visited.insert((0, 0));
 
@@ -169,14 +135,18 @@ fn day1()
 
     let mut revisited = false;
 
-    for instr in day1::DIRECTIONS.split(' ') {
-        match loc.movn(instr, &mut visited) {
-            Some((x, y)) if !revisited => {
+    for instr in day1::DIRECTIONS.split(' ')
+    {
+        match loc.movn(instr, &mut visited)
+        {
+            Some((x, y)) if !revisited =>
+            {
                 print!("First revisited at: {}; ",
                        i64::abs(x) + i64::abs(y));
                 revisited = true;
             },
-            _ => {},
+            _ =>
+            {},
         }
     }
 
@@ -198,54 +168,73 @@ fn day2()
     let mut y = 2;
 
 
-    for line in day2::DIRECTIONS.lines() {
-        for c in line.chars() {
-            match c {
-                'U' if loc.y > 0 => {
+    for line in day2::DIRECTIONS.lines()
+    {
+        for c in line.chars()
+        {
+            match c
+            {
+                'U' if loc.y > 0 =>
+                {
                     loc.y -= 1;
                 },
-                'D' if loc.y < 2 => {
+                'D' if loc.y < 2 =>
+                {
                     loc.y += 1;
                 },
-                'L' if loc.x > 0 => {
+                'L' if loc.x > 0 =>
+                {
                     loc.x -= 1;
                 },
-                'R' if loc.x < 2 => {
+                'R' if loc.x < 2 =>
+                {
                     loc.x += 1;
                 },
-                _ => {},
+                _ =>
+                {},
             }
 
-            match c {
-                'U' => {
-                    if y == 0 || day2::PAD[y - 1][x].is_none() {
+            match c
+            {
+                'U' =>
+                {
+                    if y == 0 || day2::PAD[y - 1][x].is_none()
+                    {
                         continue;
                     }
                     y -= 1;
                 },
-                'R' => {
-                    if x == 4 || day2::PAD[y][x + 1].is_none() {
+                'R' =>
+                {
+                    if x == 4 || day2::PAD[y][x + 1].is_none()
+                    {
                         continue;
                     }
                     x += 1;
                 },
-                'D' => {
-                    if y == 4 || day2::PAD[y + 1][x].is_none() {
+                'D' =>
+                {
+                    if y == 4 || day2::PAD[y + 1][x].is_none()
+                    {
                         continue;
                     }
                     y += 1;
                 },
-                'L' => {
-                    if x == 0 || day2::PAD[y][x - 1].is_none() {
+                'L' =>
+                {
+                    if x == 0 || day2::PAD[y][x - 1].is_none()
+                    {
                         continue;
                     };
                     x -= 1;
                 },
-                _ => {},
+                _ =>
+                {},
             }
         }
 
-        if let Some(c) = day2::PAD[y][x] {
+        if let Some(c) = day2::PAD[y][x]
+        {
             code.push(c);
         }
 
@@ -259,29 +248,33 @@ fn day2()
 
 fn day3()
 {
-
     let mut t: [u64; 3] = [0; 3];
     let mut valid_triangles: u64 = 0;
 
-    for triangle in &day3::TRIANGLES[..] {
+    for triangle in &day3::TRIANGLES[..]
+    {
         t.copy_from_slice(triangle);
         t.sort();
-        if t[2] < t[0] + t[1] {
+        if t[2] < t[0] + t[1]
+        {
             valid_triangles += 1;
         }
     }
 
     let mut bonus_valid_triangles: u64 = 0;
 
-    for triangles in day3::TRIANGLES[..].chunks(3) {
-        for col in 0..3 {
+    for triangles in day3::TRIANGLES[..].chunks(3)
+    {
+        for col in 0..3
+        {
             t[0] = triangles[0][col];
             t[1] = triangles[1][col];
             t[2] = triangles[2][col];
 
             t.sort();
 
-            if t[2] < t[0] + t[1] {
+            if t[2] < t[0] + t[1]
+            {
                 bonus_valid_triangles += 1;
             }
         }
@@ -299,7 +292,8 @@ fn day4()
     let mut room_sum: u32 = 0;
     let mut decryped_name: String = String::new();
 
-    for room_spec in day4::ROOMS.lines() {
+    for room_spec in day4::ROOMS.lines()
+    {
         letter_freqs.clear();
         letters.clear();
         decryped_name.clear();
@@ -311,7 +305,8 @@ fn day4()
         // {
         //    println!("Found real room #{} with name {}", room_id, decryped_name);
         // }
-        if decryped_name == "northpole object storage" {
+        if decryped_name == "northpole object storage"
+        {
             print!("North Pole objects: {}; ", room_id)
         }
 
@@ -373,49 +368,66 @@ fn day4_inner(room_spec: &str,
               -> u32
 {
 
-    let name_end_idx = if let Some(ix) = room_spec.rfind('-') {
+    let name_end_idx = if let Some(ix) = room_spec.rfind('-')
+    {
         ix
-    } else {
+    }
+    else
+    {
         return 0;
     };
 
     let name_str = &room_spec[0..name_end_idx];
 
-    for letter in name_str.chars() {
-        if letter == '-' {
+    for letter in name_str.chars()
+    {
+        if letter == '-'
+        {
             continue;
         }
 
-        if letters.contains_key(&letter) {
+        if letters.contains_key(&letter)
+        {
             letters.get_mut(&letter).map(|x| *x -= 1);
-        } else {
+        }
+        else
+        {
             letters.insert(letter, -1);
         }
     }
 
 
-    for (key, value) in letters.drain() {
+    for (key, value) in letters.drain()
+    {
         letter_freqs.push((value, key));
     }
 
     letter_freqs.sort();
 
-    let code_idx = if let Some(idx) = room_spec.find('[') {
+    let code_idx = if let Some(idx) = room_spec.find('[')
+    {
         idx
-    } else {
+    }
+    else
+    {
         return 0;
     };
 
     let room_number = if let Ok(x) = u32::from_str_radix(&room_spec[name_end_idx + 1..code_idx],
-                                                         10) {
+                                                         10)
+    {
         x
-    } else {
+    }
+    else
+    {
         println!("Parse error!");
         return 0;
     };
 
-    for (&(_, x), y) in letter_freqs.iter().zip(room_spec[1 + code_idx..].chars()).take(5) {
-        if x != y {
+    for (&(_, x), y) in letter_freqs.iter().zip(room_spec[1 + code_idx..].chars()).take(5)
+    {
+        if x != y
+        {
             return 0;
         }
     }
@@ -430,8 +442,10 @@ fn caesar_shift(txt: &[u8], shift: u32, buf: &mut String)
 {
     let normalised_shift: u8 = (shift % 26) as u8;
 
-    for &c in txt {
-        if c == ('-' as u8) {
+    for &c in txt
+    {
+        if c == ('-' as u8)
+        {
             buf.push(' ');
             continue;
         }
@@ -444,7 +458,8 @@ fn day5()
 {
     fn first_five_zero(buf: &[u8]) -> bool
     {
-        if buf.len() < 3 {
+        if buf.len() < 3
+        {
             return false;
         }
 
@@ -463,8 +478,10 @@ fn day5()
     let mut md5: md5::Md5 = md5::Md5::new();
     let mut index = 0;
 
-    while (password.len() < 8) || pass2_num_chars < 8 {
-        for x in out_buffer.iter_mut() {
+    while (password.len() < 8) || pass2_num_chars < 8
+    {
+        for x in out_buffer.iter_mut()
+        {
             *x = 0;
         }
 
@@ -475,15 +492,18 @@ fn day5()
         md5.input(plaintext.as_bytes());
         md5.result(&mut out_buffer);
 
-        if first_five_zero(&out_buffer[..]) {
-            if password.len() < 8 {
+        if first_five_zero(&out_buffer[..])
+        {
+            if password.len() < 8
+            {
                 let c: char = hex_chars[(out_buffer[2] & 0x0f) as usize];
                 password.push(c);
             }
 
             let index = (out_buffer[2] & 0x0f) as usize;
             let c2: char = hex_chars[((out_buffer[3] & 0xf0) >> 4) as usize];
-            if (index < 8) && password2[index] == ' ' {
+            if (index < 8) && password2[index] == ' '
+            {
                 password2[index] = c2;
                 pass2_num_chars += 1;
             }
@@ -492,7 +512,8 @@ fn day5()
         index += 1;
     }
 
-    for &c in &password2[..] {
+    for &c in &password2[..]
+    {
         p2.push(c);
     }
 
@@ -508,29 +529,38 @@ fn day6()
     let mut message = String::new();
     let mut min_msg = String::new();
 
-    for msg in &day6::MESSAGES[..] {
-        for (i, c) in msg.chars().enumerate() {
+    for msg in &day6::MESSAGES[..]
+    {
+        for (i, c) in msg.chars().enumerate()
+        {
             assert!(i < 8);
-            if hashmaps[i].contains_key(&c) {
+            if hashmaps[i].contains_key(&c)
+            {
                 hashmaps[i].get_mut(&c).map(|x| *x += 1);
-            } else {
+            }
+            else
+            {
                 hashmaps[i].insert(c, 1);
             }
         }
     }
-    for map in &mut hashmaps[..] {
+    for map in &mut hashmaps[..]
+    {
         let mut max_count = 0;
         let mut max_char = ' ';
         let mut min_count = 1000;
         let mut min_char = ' ';
 
-        for (c, n) in map.drain() {
-            if n > max_count {
+        for (c, n) in map.drain()
+        {
+            if n > max_count
+            {
                 max_char = c;
                 max_count = n;
             }
 
-            if n < min_count {
+            if n < min_count
+            {
                 min_char = c;
                 min_count = n;
             }
@@ -550,12 +580,15 @@ fn day7()
     let mut tls_count: u32 = 0;
     let mut ssl_count: u32 = 0;
 
-    for &ip in &day7::IPs[..] {
-        if supports_tls(ip) {
+    for &ip in &day7::IPs[..]
+    {
+        if supports_tls(ip)
+        {
             tls_count += 1;
         }
 
-        if supports_ssl(ip) {
+        if supports_ssl(ip)
+        {
             ssl_count += 1;
         }
     }
@@ -571,32 +604,38 @@ fn supports_tls(ip: &str) -> bool
     let mut inner_palindrome = false;
     let mut is_inner = false;
 
-    for w in windows(ip, 4) {
+    for w in windows(ip, 4)
+    {
         // filter out transitionary windows
-        if w.contains('[') {
+        if w.contains('[')
+        {
             is_inner = true;
             continue;
         }
 
-        if w.contains(']') {
+        if w.contains(']')
+        {
             is_inner = false;
             continue;
         }
 
-        if is_inner {
+        if is_inner
+        {
             inner_palindrome |= palindrome(w) &&
                                 w.chars()
-                                 .take(2)
-                                 .fold((true, ' '),
-                                       |(x, y), c| (x && (y != c), c))
-                                 .0;
-        } else {
+                .take(2)
+                .fold((true, ' '),
+                      |(x, y), c| (x && (y != c), c))
+                .0;
+        }
+        else
+        {
             outer_palindrome |= palindrome(w) &&
                                 w.chars()
-                                 .take(2)
-                                 .fold((true, ' '),
-                                       |(x, y), c| (x && (y != c), c))
-                                 .0;
+                .take(2)
+                .fold((true, ' '),
+                      |(x, y), c| (x && (y != c), c))
+                .0;
         }
     }
 
@@ -609,14 +648,15 @@ fn supports_ssl(ip: &str) -> bool
     {
         (w.len() == 3) && (w.chars().next()) == (w.chars().rev().next()) &&
         w.chars()
-         .fold((true, ' '),
-               |(x, y), z| (x && (y != z), z))
-         .0
+            .fold((true, ' '),
+                  |(x, y), z| (x && (y != z), z))
+            .0
     }
 
     fn invert(w: &str, buf: &mut String)
     {
-        if w.len() != 3 {
+        if w.len() != 3
+        {
             return;
         }
         let mut iter = w.chars();
@@ -633,29 +673,39 @@ fn supports_ssl(ip: &str) -> bool
     let mut outer_sections = Vec::new();
     let mut bab: String = String::with_capacity(3);
     let mut inner = false;
-    for w in windows(ip, 3) {
-        if w.contains('[') {
+    for w in windows(ip, 3)
+    {
+        if w.contains('[')
+        {
             inner = true;
             continue;
         }
 
-        if w.contains(']') {
+        if w.contains(']')
+        {
             inner = false;
             continue;
         }
-        if aba(w) {
-            if inner {
+        if aba(w)
+        {
+            if inner
+            {
                 inner_sections.push(w);
-            } else {
+            }
+            else
+            {
                 outer_sections.push(w);
             }
         }
     }
 
-    for section in outer_sections {
-        for inner_section in &inner_sections {
+    for section in outer_sections
+    {
+        for inner_section in &inner_sections
+        {
             invert(inner_section, &mut bab);
-            if section == bab {
+            if section == bab
+            {
                 return true;
 
             }
@@ -695,7 +745,8 @@ fn day8()
 {
     // use u64 = [bool;64]
     let mut screen: Screen = Screen::new(50, 6);
-    for instr in &day8::INSTRUCTIONS[..] {
+    for instr in &day8::INSTRUCTIONS[..]
+    {
         screen.exec(instr);
     }
 
@@ -715,7 +766,8 @@ impl Screen
 {
     fn rr(&mut self, r: usize, s: usize)
     {
-        if r >= self.height {
+        if r >= self.height
+        {
             return;
         }
 
@@ -723,27 +775,32 @@ impl Screen
         let buf: &mut [bool; 50] = &mut self.buf;
         let w: usize = self.width;
 
-        for i in 0..w {
+        for i in 0..w
+        {
             buf[(i + s) % w] = row[i];
         }
 
-        for i in 0..w {
+        for i in 0..w
+        {
             row[i] = buf[i];
         }
     }
 
     fn rc(&mut self, c: usize, s: usize)
     {
-        if c >= self.width {
+        if c >= self.width
+        {
             return;
         }
         let h: usize = self.height;
 
-        for i in 0..h {
+        for i in 0..h
+        {
             self.buf[(i + s) % h] = self.data[i][c];
         }
 
-        for i in 0..h {
+        for i in 0..h
+        {
             self.data[i][c] = self.buf[i];
         }
     }
@@ -752,11 +809,14 @@ impl Screen
     {
         let h = self.height;
         let w = self.width;
-        if w < a || h < b {
+        if w < a || h < b
+        {
             return;
         }
-        for row in &mut self.data[0..b] {
-            for val in &mut row[0..a] {
+        for row in &mut self.data[0..b]
+        {
+            for val in &mut row[0..a]
+            {
                 *val = true;
             }
         }
@@ -765,13 +825,16 @@ impl Screen
     #[allow(dead_code)]
     fn cl(&mut self)
     {
-        for row in &mut self.data[..] {
-            for val in &mut row[..] {
+        for row in &mut self.data[..]
+        {
+            for val in &mut row[..]
+            {
                 *val = false;
             }
         }
 
-        for val in &mut self.buf[..] {
+        for val in &mut self.buf[..]
+        {
             *val = false;
         }
     }
@@ -780,13 +843,11 @@ impl Screen
     {
         let mut s = String::with_capacity((self.width + 1) * self.height);
 
-        for row in &self.data[0..self.height] {
-            for val in &row[0..self.width] {
-                s.push(if *val {
-                    '#'
-                } else {
-                    ' '
-                });
+        for row in &self.data[0..self.height]
+        {
+            for val in &row[0..self.width]
+            {
+                s.push(if *val { '#' } else { ' ' });
             }
             s.push('\n');
         }
@@ -806,7 +867,8 @@ impl Screen
 
     fn exec(&mut self, i: &day8::Instr)
     {
-        match *i {
+        match *i
+        {
             day8::Instr::RRow(row, shift) => self.rr(row, shift),
             day8::Instr::RCol(col, shift) => self.rc(col, shift),
             day8::Instr::Rect(w, h) => self.sq(w, h),
@@ -816,9 +878,12 @@ impl Screen
     fn ct(&self) -> u64
     {
         let mut x = 0;
-        for row in &self.data[0..self.height] {
-            for val in &row[0..self.width] {
-                if *val {
+        for row in &self.data[0..self.height]
+        {
+            for val in &row[0..self.width]
+            {
+                if *val
+                {
                     x += 1;
                 }
             }
@@ -844,7 +909,8 @@ fn day9()
 {
     let mut size: u64 = 0;
     let d = Decompressor::new(day9::FILE_TEXT);
-    for block in d {
+    for block in d
+    {
         size += block.len() as u64;
     }
 
@@ -864,7 +930,8 @@ impl DecompressionBlock
 {
     fn position(&self) -> u64
     {
-        match *self {
+        match *self
+        {
             DecompressionBlock::Mul(p, _, _) => p,
             DecompressionBlock::Raw(p, _) => p,
         }
@@ -872,7 +939,8 @@ impl DecompressionBlock
 
     fn length(&self) -> u64
     {
-        match *self {
+        match *self
+        {
             DecompressionBlock::Mul(_, l, _) |
             DecompressionBlock::Raw(_, l) => l,
         }
@@ -884,11 +952,15 @@ fn eval_chain(chain: &[DecompressionBlock], position: u64, length: u64) -> u64
     let mut size: u64 = 0;
     // handle each character of the raw base separately, to account for disjoint
     // spans
-    for p in 0..length {
+    for p in 0..length
+    {
         let mut multiplier = 1;
-        for block in chain {
-            if let &DecompressionBlock::Mul(mul_start, l, m) = block {
-                if mul_start + l > position + p - length {
+        for block in chain
+        {
+            if let &DecompressionBlock::Mul(mul_start, l, m) = block
+            {
+                if mul_start + l > position + p - length
+                {
                     multiplier *= m;
                 }
             }
@@ -903,11 +975,15 @@ fn decompressed_size(txt: &str) -> u64
 {
     let mut blocks = Vec::new();
     let mut position = 0;
-    for block in txt.split(|x| x == '(' || x == ')') {
+    for block in txt.split(|x| x == '(' || x == ')')
+    {
         position += 1 + block.len() as u64;
-        if let Some((len, count)) = parse_marker(block) {
+        if let Some((len, count)) = parse_marker(block)
+        {
             blocks.push(DecompressionBlock::Mul(position + 1, len as u64, count as u64));
-        } else {
+        }
+        else
+        {
             blocks.push(DecompressionBlock::Raw(position, block.len() as u64))
         }
     }
@@ -915,11 +991,15 @@ fn decompressed_size(txt: &str) -> u64
     let mut size: u64 = 0;
     let mut active = Vec::new();
 
-    for block in blocks {
+    for block in blocks
+    {
         position = block.position();
-        if let DecompressionBlock::Raw(p, l) = block {
+        if let DecompressionBlock::Raw(p, l) = block
+        {
             size += eval_chain(&active, p, l);
-        } else {
+        }
+        else
+        {
             active.push(block);
         }
 
@@ -942,13 +1022,16 @@ impl<'a> Iterator for Decompressor<'a>
     type Item = &'a str;
     fn next(&mut self) -> Option<&'a str>
     {
-        if self.posn == self.txt.len() {
+        if self.posn == self.txt.len()
+        {
             return None;
         }
-        if self.ct > 0 {
+        if self.ct > 0
+        {
             let block = &self.txt[self.posn..self.posn + self.len];
             self.ct -= 1;
-            if self.ct == 0 {
+            if self.ct == 0
+            {
                 self.posn += self.len;
                 self.len = 0;
             }
@@ -959,14 +1042,19 @@ impl<'a> Iterator for Decompressor<'a>
         // and then set the marker
         // and then yield preceding block
 
-        let next_marker_pos = match (&self.txt[self.posn..]).find('(') {
+        let next_marker_pos = match (&self.txt[self.posn..]).find('(')
+        {
             Some(n) => n,
-            None => {
+            None =>
+            {
                 let rest = &self.txt[self.posn..];
                 self.posn = self.txt.len();
-                if rest.is_empty() {
+                if rest.is_empty()
+                {
                     return None;
-                } else {
+                }
+                else
+                {
                     return Some(rest);
                 }
             },
@@ -974,19 +1062,21 @@ impl<'a> Iterator for Decompressor<'a>
         };
 
         let marker_len = (&self.txt[self.posn + next_marker_pos..]).find(')').unwrap();
-        let (len, count) = parse_marker(&self.txt[self.posn + next_marker_pos..self.posn + next_marker_pos +
-                                                                               marker_len])
-                               .unwrap();
+        let (len, count) =
+            parse_marker(&self.txt[self.posn + next_marker_pos..self.posn + next_marker_pos + marker_len]).unwrap();
         self.ct = count;
         self.len = len;
         let pre_block = &self.txt[self.posn..self.posn + next_marker_pos];
         self.posn += next_marker_pos + marker_len + 1; // skip ending ')'
 
         // for example, if we start with a marker
-        if pre_block.is_empty() {
+        if pre_block.is_empty()
+        {
             self.ct -= 1;
             Some(&self.txt[self.posn..self.posn + self.len])
-        } else {
+        }
+        else
+        {
             Some(pre_block)
         }
     }
@@ -1008,25 +1098,37 @@ impl<'a> Decompressor<'a>
 
 fn parse_marker(txt: &str) -> Option<(usize, usize)>
 {
-    let src = if txt.starts_with('(') {
+    let src = if txt.starts_with('(')
+    {
         &txt[1..]
-    } else {
+    }
+    else
+    {
         &txt[..]
     };
 
-    let split = if let Some(n) = src.find('x') {
+    let split = if let Some(n) = src.find('x')
+    {
         n
-    } else {
+    }
+    else
+    {
         return None;
     };
-    let len = if let Ok(n) = usize::from_str_radix(&src[0..split], 10) {
+    let len = if let Ok(n) = usize::from_str_radix(&src[0..split], 10)
+    {
         n
-    } else {
+    }
+    else
+    {
         return None;
     };
-    let count = if let Ok(n) = usize::from_str_radix(&src[split + 1..], 10) {
+    let count = if let Ok(n) = usize::from_str_radix(&src[split + 1..], 10)
+    {
         n
-    } else {
+    }
+    else
+    {
         return None;
     };
     Some((len, count))
@@ -1098,11 +1200,16 @@ impl Bot
     }
     fn chip(&mut self, c: u32) -> &mut Bot
     {
-        if self.chip1.is_none() {
+        if self.chip1.is_none()
+        {
             self.chip1 = Some(c);
-        } else if self.chip2.is_none() {
+        }
+        else if self.chip2.is_none()
+        {
             self.chip2 = Some(c);
-        } else {
+        }
+        else
+        {
             println!("Warning: trying to pass a chip to a bot that already has two chips!");
         }
 
@@ -1123,25 +1230,32 @@ impl Bot
 
 fn set_up_bots(bot_map: &mut BTreeMap<u32, Bot>, logic: &[day10::Logic])
 {
-    for l in logic {
-        match *l {
-            day10::Logic::Give(bot_id, chip) => {
+    for l in logic
+    {
+        match *l
+        {
+            day10::Logic::Give(bot_id, chip) =>
+            {
                 let bot = get_or_insert_mut(bot_map, &bot_id, Bot::new(bot_id));
                 bot.chip(chip);
             },
-            day10::Logic::High(src, dest) => {
+            day10::Logic::High(src, dest) =>
+            {
                 let bot = get_or_insert_mut(bot_map, &src, Bot::new(src));
                 bot.high(BotTarget::Bot(dest));
             },
-            day10::Logic::Low(src, dest) => {
+            day10::Logic::Low(src, dest) =>
+            {
                 let bot = get_or_insert_mut(bot_map, &src, Bot::new(src));
                 bot.low(BotTarget::Bot(dest));
             },
-            day10::Logic::OutputHigh(src, dest) => {
+            day10::Logic::OutputHigh(src, dest) =>
+            {
                 let bot = get_or_insert_mut(bot_map, &src, Bot::new(src));
                 bot.high(BotTarget::Output(dest));
             },
-            day10::Logic::OutputLow(src, dest) => {
+            day10::Logic::OutputLow(src, dest) =>
+            {
                 let bot = get_or_insert_mut(bot_map, &src, Bot::new(src));
                 bot.low(BotTarget::Output(dest));
             },
@@ -1164,16 +1278,20 @@ fn eval_bots(bot_map: &mut BTreeMap<u32, Bot>,
     let mut movements = Vec::new();
 
     let mut complete = false;
-    while !complete {
+    while !complete
+    {
         complete = true;
         movements.clear();
 
-        for bot in bot_map.values_mut() {
-            if bot.chip1.is_some() && bot.chip2.is_some() {
+        for bot in bot_map.values_mut()
+        {
+            if bot.chip1.is_some() && bot.chip2.is_some()
+            {
                 // we have carried out some comparison in this iteration
                 complete = false;
 
-                let (high, low) = match (bot.chip1.take(), bot.chip2.take()) {
+                let (high, low) = match (bot.chip1.take(), bot.chip2.take())
+                {
                     (Some(x), Some(y)) if x > y => (x, y),
                     (Some(x), Some(y)) => (y, x),
                     _ => unreachable!(),
@@ -1199,24 +1317,32 @@ fn eval_bots(bot_map: &mut BTreeMap<u32, Bot>,
             }
         }
 
-        for &Movement { ref src, ref dest, ref chip } in &movements {
-            match *dest {
-                BotTarget::Bot(b) => {
-                    if let Some(bot) = bot_map.get_mut(&b) {
+        for &Movement { ref src, ref dest, ref chip } in &movements
+        {
+            match *dest
+            {
+                BotTarget::Bot(b) =>
+                {
+                    if let Some(bot) = bot_map.get_mut(&b)
+                    {
                         bot.chip(*chip);
-                    } else {
+                    }
+                    else
+                    {
                         println!("Error: Bot #{} wants to pass high chip to Bot#{}, but it does not exist!",
                                  src,
                                  b);
                     }
                 },
 
-                BotTarget::Output(o) => {
+                BotTarget::Output(o) =>
+                {
                     let output = get_or_insert_mut(outputs, &o, Vec::new());
                     output.push(*chip);
                 },
 
-                BotTarget::None => {
+                BotTarget::None =>
+                {
                     return println!("Error: Bot#{} is moving chip #{}, but has no destination!",
                                     src,
                                     chip);
@@ -1266,8 +1392,10 @@ fn day10()
               &mut outputs,
               &mut comparisons);
 
-    for cmp in comparisons {
-        if cmp.high == 61 && cmp.low == 17 {
+    for cmp in comparisons
+    {
+        if cmp.high == 61 && cmp.low == 17
+        {
             print!("Bot comparing 61 to 17: #{} ", cmp.bot);
         }
     }
@@ -1343,82 +1471,23 @@ impl FloorPlan
     {
         let mut s = String::new();
         s.push('\n');
-        for i in (1..5).rev() {
-            s.push_str(if self.fl == i {
-                "E : "
-            } else {
-                "  : "
-            });
-            s.push_str(if self.po[0] == i {
-                "PoC "
-            } else {
-                "    "
-            });
-            s.push_str(if self.th[0] == i {
-                "ThC "
-            } else {
-                "    "
-            });
-            s.push_str(if self.pr[0] == i {
-                "PrC "
-            } else {
-                "    "
-            });
-            s.push_str(if self.ru[0] == i {
-                "RuC "
-            } else {
-                "    "
-            });
-            s.push_str(if self.co[0] == i {
-                "CoC "
-            } else {
-                "    "
-            });
-            s.push_str(if self.el[0] == i {
-                "ElC "
-            } else {
-                "    "
-            });
-            s.push_str(if self.di[0] == i {
-                "DiC "
-            } else {
-                "    "
-            });
-            s.push_str(if self.po[1] == i {
-                "PoG "
-            } else {
-                "    "
-            });
-            s.push_str(if self.th[1] == i {
-                "ThG "
-            } else {
-                "    "
-            });
-            s.push_str(if self.pr[1] == i {
-                "PrG "
-            } else {
-                "    "
-            });
-            s.push_str(if self.ru[1] == i {
-                "RuG "
-            } else {
-                "    "
-            });
-            s.push_str(if self.co[1] == i {
-                "CoG "
-            } else {
-                "    "
-            });
-            s.push_str(if self.el[1] == i {
-                "ElG "
-            } else {
-                "    "
-            });
-            s.push_str(if self.di[1] == i {
-                "DiG "
-            } else {
-                "    "
-            });
+        for i in (1..5).rev()
+        {
+            s.push_str(if self.fl == i { "E : " } else { "  : " });
+            s.push_str(if self.po[0] == i { "PoC " } else { "    " });
+            s.push_str(if self.th[0] == i { "ThC " } else { "    " });
+            s.push_str(if self.pr[0] == i { "PrC " } else { "    " });
+            s.push_str(if self.ru[0] == i { "RuC " } else { "    " });
+            s.push_str(if self.co[0] == i { "CoC " } else { "    " });
+            s.push_str(if self.el[0] == i { "ElC " } else { "    " });
+            s.push_str(if self.di[0] == i { "DiC " } else { "    " });
+            s.push_str(if self.po[1] == i { "PoG " } else { "    " });
+            s.push_str(if self.th[1] == i { "ThG " } else { "    " });
+            s.push_str(if self.pr[1] == i { "PrG " } else { "    " });
+            s.push_str(if self.ru[1] == i { "RuG " } else { "    " });
+            s.push_str(if self.co[1] == i { "CoG " } else { "    " });
+            s.push_str(if self.el[1] == i { "ElG " } else { "    " });
+            s.push_str(if self.di[1] == i { "DiG " } else { "    " });
 
             s.push('\n');
         }
@@ -1456,16 +1525,19 @@ impl FloorPlan
 
     fn has_fried_chips(&self) -> bool
     {
-        for floor in 1..5 {
+        for floor in 1..5
+        {
             let mut vuln = false;
             let mut has_rtg = false;
             let floor = self.get_floor(floor);
-            for component in 0..7 {
+            for component in 0..7
+            {
                 vuln |= floor.get(component) && !floor.get(component + 7);
                 has_rtg |= floor.get(component + 5);
             }
 
-            if vuln && has_rtg {
+            if vuln && has_rtg
+            {
                 return true;
             }
         }
@@ -1474,13 +1546,10 @@ impl FloorPlan
 
     fn from_floor_index_mut(&mut self, index: u8) -> &mut u8
     {
-        let i = if index > 6 {
-            1
-        } else {
-            0
-        };
+        let i = if index > 6 { 1 } else { 0 };
 
-        match index % 7 {
+        match index % 7
+        {
             0 => &mut self.po[i],
             1 => &mut self.th[i],
             2 => &mut self.pr[i],
@@ -1495,13 +1564,10 @@ impl FloorPlan
 
     fn from_floor_index(&self, index: u8) -> u8
     {
-        let i = if index > 6 {
-            1
-        } else {
-            0
-        };
+        let i = if index > 6 { 1 } else { 0 };
 
-        match index % 7 {
+        match index % 7
+        {
             0 => self.po[i],
             1 => self.th[i],
             2 => self.pr[i],
@@ -1517,58 +1583,71 @@ impl FloorPlan
     {
         let on_this_floor = self.get_floor(self.fl);
 
-        for x in 0..14 {
-            if !on_this_floor.get(x) {
+        for x in 0..14
+        {
+            if !on_this_floor.get(x)
+            {
                 continue;
             }
 
             // move downwards
-            if self.fl > 1 {
+            if self.fl > 1
+            {
                 let mut floor = self.clone();
                 floor.steps += 1;
                 floor.fl -= 1;
-                if floor.from_floor_index(x) == 0 {
+                if floor.from_floor_index(x) == 0
+                {
                     println!("{}", &self);
                 }
                 *floor.from_floor_index_mut(x) -= 1;
 
-                for y in 0..14 {
-                    if !on_this_floor.get(y) || x == y {
+                for y in 0..14
+                {
+                    if !on_this_floor.get(y) || x == y
+                    {
                         continue;
                     }
 
                     *floor.from_floor_index_mut(y) -= 1;
-                    if !floor.has_fried_chips() {
+                    if !floor.has_fried_chips()
+                    {
                         v.push(floor.clone());
                     }
                     *floor.from_floor_index_mut(y) += 1;
                 }
 
-                if !floor.has_fried_chips() {
+                if !floor.has_fried_chips()
+                {
                     v.push(floor);
                 }
             }
 
             // move upwards
-            if self.fl < 4 {
+            if self.fl < 4
+            {
                 let mut floor = self.clone();
                 floor.steps += 1;
                 floor.fl += 1;
                 *floor.from_floor_index_mut(x) += 1;
 
-                for y in 0..14 {
-                    if !on_this_floor.get(y) || x == y {
+                for y in 0..14
+                {
+                    if !on_this_floor.get(y) || x == y
+                    {
                         continue;
                     }
 
                     *floor.from_floor_index_mut(y) += 1;
-                    if !floor.has_fried_chips() {
+                    if !floor.has_fried_chips()
+                    {
                         v.push(floor.clone());
                     }
                     *floor.from_floor_index_mut(y) -= 1;
                 }
 
-                if !floor.has_fried_chips() {
+                if !floor.has_fried_chips()
+                {
                     v.push(floor);
                 }
             }
@@ -1594,7 +1673,8 @@ fn solve_floorplan(input_plan: FloorPlan) -> u32
     let mut plan = input_plan;
     let mut plans = Vec::new();
     let mut seen_plans = BTreeSet::new();
-    while !plan.is_solved() {
+    while !plan.is_solved()
+    {
         plan.push_adjacent(&mut plans);
         seen_plans.insert(plan);
         plans.retain(|x| !seen_plans.contains(x));
@@ -1703,17 +1783,17 @@ fn test_floorplan()
     });
 
     assert!((FloorPlan {
-                po: [1, 2],
-                th: [2, 3],
-                pr: [5, 5],
-                ru: [5, 5],
-                co: [5, 5],
-                el: [5, 5],
-                di: [5, 5],
-                fl: 2,
-                steps: 1,
-            })
-            .has_fried_chips());
+            po: [1, 2],
+            th: [2, 3],
+            pr: [5, 5],
+            ru: [5, 5],
+            co: [5, 5],
+            el: [5, 5],
+            di: [5, 5],
+            fl: 2,
+            steps: 1,
+        })
+        .has_fried_chips());
 
     println!("{:?}", adj);
     assert!(adj == adj_);
@@ -1776,25 +1856,32 @@ fn day11()
 fn eval_asb(asb: &[day12::ASB], regs: &mut [i64; 4])
 {
     let mut ip: usize = 0;
-    while ip < asb.len() {
+    while ip < asb.len()
+    {
         ip = asb_step(asb, regs, ip);
     }
 }
 
 fn asb_step(asb: &[day12::ASB], regs: &mut [i64; 4], ip: usize) -> usize
 {
-    if ip > asb.len() {
+    if ip > asb.len()
+    {
         return ip;
     }
 
-    match asb[ip] {
+    match asb[ip]
+    {
         day12::ASB::Cpy(v, r) => regs[asb_reg_idx(r)] = asb_val(v, regs),
         day12::ASB::Inc(r) => regs[asb_reg_idx(r)] += 1,
         day12::ASB::Dec(r) => regs[asb_reg_idx(r)] -= 1,
-        day12::ASB::JNZ(v, x) if asb_val(v, regs) != 0 => {
-            return if x < 0 {
+        day12::ASB::JNZ(v, x) if asb_val(v, regs) != 0 =>
+        {
+            return if x < 0
+            {
                 ip - x.abs() as usize
-            } else {
+            }
+            else
+            {
                 ip + x as usize
             }
         },
@@ -1806,7 +1893,8 @@ fn asb_step(asb: &[day12::ASB], regs: &mut [i64; 4], ip: usize) -> usize
 
 fn asb_reg_idx(x: day12::Reg) -> usize
 {
-    match x {
+    match x
+    {
         day12::Reg::A => 0,
         day12::Reg::B => 1,
         day12::Reg::C => 2,
@@ -1816,12 +1904,14 @@ fn asb_reg_idx(x: day12::Reg) -> usize
 
 fn asb_val(v: day12::Val, regs: &[i64; 4]) -> i64
 {
-    match v {
+    match v
+    {
         day12::Val::Reg(r) => regs[asb_reg_idx(r)],
         day12::Val::Lit(x) => x,
     }
 }
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 enum ASB
 {
     MovL(i64, usize),
@@ -1830,6 +1920,8 @@ enum ASB
     Jnz(usize, i32),
     Add(usize, usize), // adds y to x, sets y to zero
     Sub(usize, usize), // subs y from x, sets y to zero
+    AddL(usize, i64),
+    SubL(usize, i64),
     NoOp,
 }
 
@@ -1837,56 +1929,109 @@ fn asb_opt(src: &[day12::ASB]) -> Vec<ASB>
 {
     let mut v = Vec::new();
     let mut skip = 0;
-    for w in src.windows(3) {
-        if skip > 0 {
+    for w in src.windows(3)
+    {
+        if skip > 0
+        {
             skip -= 1;
             continue;
         }
 
-        match w {
-            &[day12::ASB::Inc(r1), day12::ASB::Dec(r2), day12::ASB::JNZ(r3, -2)] if r2 == r3 => {
+        match w
+        {
+            &[day12::ASB::Inc(r1), day12::ASB::Dec(r2), day12::ASB::JNZ(day12::Val::Reg(r3), -2)] if r2 == r3 =>
+            {
                 v.push(ASB::NoOp);
                 v.push(ASB::NoOp);
                 v.push(ASB::Add(asb_reg_idx(r1), asb_reg_idx(r2)));
                 skip = 2;
             },
 
-            &[day12::ASB::Inc(r1), day12::ASB::Dec(r2), day12::ASB::JNZ(r3, -2)] if r1 == r3 => {
+            &[day12::ASB::Dec(r1), day12::ASB::Dec(r2), day12::ASB::JNZ(day12::Val::Reg(r3), -2)] if r1 == r3 =>
+            {
                 v.push(ASB::NoOp);
                 v.push(ASB::NoOp);
                 v.push(ASB::Sub(asb_reg_idx(r1), asb_reg_idx(r2)));
                 skip = 2;
             },
 
-            &[day12::ASB::Dec(r2), day12::ASB::Inc(r1), day12::ASB::JNZ(r3, -2)] if r2 == r3 => {
+            &[day12::ASB::Dec(r2), day12::ASB::Inc(r1), day12::ASB::JNZ(day12::Val::Reg(r3), -2)] if r2 == r3 =>
+            {
                 v.push(ASB::NoOp);
                 v.push(ASB::NoOp);
                 v.push(ASB::Add(asb_reg_idx(r1), asb_reg_idx(r2)));
                 skip = 2;
             },
 
-            &[day12::ASB::Dec(r2), day12::ASB::Inc(r1), day12::ASB::JNZ(r3, -2)] if r1 == r3 => {
+            &[day12::ASB::Dec(r2), day12::ASB::Dec(r1), day12::ASB::JNZ(day12::Val::Reg(r3), -2)] if r1 == r3 =>
+            {
                 v.push(ASB::NoOp);
                 v.push(ASB::NoOp);
                 v.push(ASB::Sub(asb_reg_idx(r1), asb_reg_idx(r2)));
                 skip = 2;
             },
 
-            &[day12::ASB::JNZ(day12::Val::Lit(x), y), _, _] => {
-                if x != 0 {
+            &[day12::ASB::JNZ(day12::Val::Lit(x), y), _, _] =>
+            {
+                if x != 0
+                {
                     v.push(ASB::Jmp(y));
-                } else {
+                }
+                else
+                {
                     v.push(ASB::NoOp);
                 }
             },
 
-            &[day12::ASB::Cpy(day12::Val::Lit(x), r), _, _] => {
+            &[day12::ASB::JNZ(day12::Val::Reg(x), y), _, _] =>
+            {
+                v.push(ASB::Jnz(asb_reg_idx(x), y));
+            },
+
+            &[day12::ASB::Cpy(day12::Val::Lit(x), r), _, _] =>
+            {
                 v.push(ASB::MovL(x, asb_reg_idx(r)));
             },
 
-            &[day12::ASB::Cpy(day12::Val::Reg(r1), r2), _, _] => {
+            &[day12::ASB::Cpy(day12::Val::Reg(r1), r2), _, _] =>
+            {
                 v.push(ASB::MovR(asb_reg_idx(r1), asb_reg_idx(r2)));
             },
+
+            _ => (),
+        }
+    }
+
+    for i in &src[src.len()-2 + skip..src.len()] // since .windows() doesn't hit these
+    {
+        match *i
+        {
+            day12::ASB::JNZ(day12::Val::Lit(x), y) =>
+            {
+                if x != 0
+                {
+                    v.push(ASB::Jmp(y));
+                }
+                else
+                {
+                    v.push(ASB::NoOp);
+                }
+            },
+
+            day12::ASB::JNZ(day12::Val::Reg(r), y) => v.push(ASB::Jnz(asb_reg_idx(r), y)),
+
+            day12::ASB::Cpy(day12::Val::Lit(x), r) =>
+            {
+                v.push(ASB::MovL(x, asb_reg_idx(r)));
+            },
+
+            day12::ASB::Cpy(day12::Val::Reg(r1), r2) =>
+            {
+                v.push(ASB::MovR(asb_reg_idx(r1), asb_reg_idx(r2)));
+            },
+
+            day12::ASB::Inc(r) => v.push(ASB::Add(asb_reg_idx(r), 1)),
+            day12::ASB::Dec(r) => v.push(ASB::Sub(asb_reg_idx(r), 1))
         }
     }
     v
@@ -1928,13 +2073,35 @@ fn test_asb()
 
 }
 
+#[test]
+fn test_asb_opt()
+{
+    let code = [day12::ASB::Cpy(day12::Val::Lit(10), day12::Reg::A),
+                day12::ASB::Cpy(day12::Val::Lit(5), day12::Reg::B),
+                day12::ASB::Inc(day12::Reg::A),
+                day12::ASB::Dec(day12::Reg::B),
+                day12::ASB::JNZ(day12::Val::Reg(day12::Reg::B), -2),
+                day12::ASB::Inc(day12::Reg::C)];
+
+    let optcode = asb_opt(&code[..]);
+    println!("{:?}", optcode);
+    assert!(&optcode[..] == &[ASB::MovL(10, 0), ASB::MovL(5, 1), ASB::NoOp, ASB::NoOp, ASB::Add(0, 1), ASB::Add(2, 1)]);
+}
+
 fn day12()
 {
     let mut regs = [0; 4];
     eval_asb(&day12::CODE[..], &mut regs);
-    println!("Registers: {:?}", regs);
-    println!("Value of register A: {}", regs[0]);
+    let a_first = regs[0];
+    regs = [0; 4];
+    regs[2] = 1;
+    eval_asb(&day12::CODE[..], &mut regs);
+    println!("{:?}", regs);
+    println!("Value of register A: {}, value of register A with initialisation: {}",
+             a_first,
+             regs[0]);
 }
+
 fn day13()
 {
 }
@@ -2004,7 +2171,8 @@ impl<'a> Iterator for StrWindow<'a>
     type Item = &'a str;
     fn next(&mut self) -> Option<&'a str>
     {
-        if self.size + self.posn > self.base.len() {
+        if self.size + self.posn > self.base.len()
+        {
             return None;
 
         }
@@ -2027,15 +2195,16 @@ fn test_windows()
 fn palindrome(txt: &str) -> bool
 {
     txt.chars()
-       .zip(txt.chars().rev())
-       .fold(true, |acc, (x, y)| acc && (x == y))
+        .zip(txt.chars().rev())
+        .fold(true, |acc, (x, y)| acc && (x == y))
 }
 
 #[allow(dead_code)]
 fn write_hex_str(bytes: &[u8], out: &mut String)
 {
     let hex_chars: [char; 16] = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'];
-    for &byte in bytes {
+    for &byte in bytes
+    {
         out.push(hex_chars[((byte & 0xf0) >> 4) as usize]);
         out.push(hex_chars[(byte & 0x0f) as usize]);
     }
@@ -2052,9 +2221,12 @@ fn to_hex_str(bytes: &[u8]) -> String
 fn get_or_insert_mut<'a, 'b: 'a, S, T>(map: &'a mut BTreeMap<S, T>, key: &'b S, alt: T) -> &'a mut T
     where S: Ord + Clone
 {
-    if map.contains_key(key) {
+    if map.contains_key(key)
+    {
         map.get_mut(key).unwrap()
-    } else {
+    }
+    else
+    {
         map.insert(key.clone(), alt);
         map.get_mut(key).unwrap()
     }
@@ -2070,15 +2242,19 @@ impl BitField32
     }
     fn set(&mut self, idx: u8, val: bool) -> bool
     {
-        if idx > 31 {
+        if idx > 31
+        {
             return false;
         }
 
         let mask = 1u32 << idx;
         let old_val = (self.0 & mask) > 0;
-        if val {
+        if val
+        {
             self.0 = self.0 | mask;
-        } else {
+        }
+        else
+        {
             self.0 = self.0 & !mask;
         }
         old_val
@@ -2086,7 +2262,8 @@ impl BitField32
 
     fn get(&self, idx: u8) -> bool
     {
-        if idx > 31 {
+        if idx > 31
+        {
             return false;
         }
         let mask = 1u32 << idx;
@@ -2119,15 +2296,19 @@ impl BitField16
     }
     fn set(&mut self, idx: u8, val: bool) -> bool
     {
-        if idx > 15 {
+        if idx > 15
+        {
             return false;
         }
 
         let mask = 1u16 << idx;
         let old_val = (self.0 & mask) > 0;
-        if val {
+        if val
+        {
             self.0 = self.0 | mask;
-        } else {
+        }
+        else
+        {
             self.0 = self.0 & !mask;
         }
         old_val
@@ -2135,7 +2316,8 @@ impl BitField16
 
     fn get(&self, idx: u8) -> bool
     {
-        if idx > 15 {
+        if idx > 15
+        {
             return false;
         }
         let mask = 1u16 << idx;
@@ -2171,7 +2353,8 @@ fn test_bitfield16()
 fn fac(n: u16) -> u64
 {
     let mut prd = 1u64;
-    for x in 0..n {
+    for x in 0..n
+    {
         prd *= x as u64;
     }
 
@@ -2180,7 +2363,8 @@ fn fac(n: u16) -> u64
 
 fn choose(n: u16, k: u16) -> u64
 {
-    if k > n {
+    if k > n
+    {
         return 0;
     }
     fac(n) / (fac(k) * fac(n - k))
