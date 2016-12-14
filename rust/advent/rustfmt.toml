@@ -16,4 +16,3 @@ report_todo = "Always"
 report_fixme = "Always"
 reorder_imports = true
 match_block_trailing_comma = true
-wrap_match_arms = false # this has been causing problems
