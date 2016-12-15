@@ -1,5 +1,5 @@
 #![allow(dead_code)]
-#![feature(slice_patterns)]
+#![feature(slice_patterns, non_ascii_idents)]
 
 extern crate crypto;
 use crypto::digest::Digest;
@@ -18,7 +18,7 @@ fn main()
 	           day13, day14, day15, day16, day17, day18, day19, day20, day21, day22, day23, day24,
 	           day25];
 
-	fns[12]();
+	fns[13]();
 }
 
 #[derive(Copy,Clone)]
@@ -1916,6 +1916,7 @@ fn test_asb_opt()
 	            day12::ASB::Dec(day12::Reg::B),
 	            day12::ASB::JNZ(day12::Val::Reg(day12::Reg::B), -2),
 	            day12::ASB::Inc(day12::Reg::C)];
+	let optcode = asb_opt(&code[..]);
 
 	assert!(&optcode[..] ==
 	        &[ASB::MovL(10, 0),
@@ -1980,8 +1981,140 @@ fn day12()
 	         regs[0]);
 }
 
+#[derive(Debug, Copy, Clone)]
+struct MazePosition
+{
+	x: u64,
+	y: u64,
+	n: u64,
+}
+
+impl PartialEq for MazePosition
+{
+	fn eq(&self, other: &MazePosition) -> bool
+	{
+		// positions are equal even if you take a longer route to it
+		self.x == other.x && self.y == other.y
+	}
+}
+
+impl Eq for MazePosition {}
+
+impl PartialOrd for MazePosition
+{
+	fn partial_cmp(&self, other: &MazePosition) -> Option<cmp::Ordering>
+	{
+
+		Some(self.cmp(other))
+	}
+}
+
+impl Ord for MazePosition
+{
+	fn cmp(&self, other: &MazePosition) -> cmp::Ordering
+	{
+		match self.x.cmp(&other.x) {
+			cmp::Ordering::Equal => self.y.cmp(&other.y),
+			x => x,
+		}
+	}
+}
+fn mkpos(x: u64, y: u64) -> MazePosition
+{
+	MazePosition::new(x, y)
+}
+
+static START_POSN: MazePosition = MazePosition { x: 1, y: 1, n: 0 };
+
+impl MazePosition
+{
+	fn new(x: u64, y: u64) -> MazePosition
+	{
+		MazePosition { x: x, y: y, n: 0 }
+	}
+
+	fn dist(&self, target: MazePosition) -> f64
+	{
+		let dx = target.x as f64 - self.x as f64;
+		let dy = target.y as f64 - self.y as f64;
+
+		f64::sqrt(dx * dx + dy * dy)
+	}
+
+	fn is_open(&self, n: u64) -> bool
+	{
+		// x*x + 3*x + 2*x*y + y + y*y has even number of bits
+		let x = self.x;
+		let y = self.y;
+		0 == ((n + (x * x + 3 * x + 2 * x * y + y + y * y)).count_ones() & 1u32)
+	}
+
+	fn compare(&self, o: &MazePosition) -> cmp::Ordering
+	{
+		o.n.cmp(&self.n)
+	}
+
+	fn push_adj(&self, v: &mut Vec<MazePosition>, n: u64)
+	{
+		for i in 0..4 {
+			let mut new = self.clone();
+			new.n += 1;
+
+			match i {
+				0 => new.x += 1,
+				1 => new.y += 1,
+				2 if new.x != 0 => new.x -= 1,
+				3 if new.y != 0 => new.y -= 1,
+				_ => continue,
+			}
+
+			if new.is_open(n) {
+				v.push(new);
+			}
+		}
+	}
+}
+
+fn solve_maze(n: u64, target: MazePosition) -> u64
+{
+	let mut posn = START_POSN;
+	let mut posn_q = Vec::new();
+	let mut seen_posns = BTreeSet::new();
+	while posn != target {
+		posn.push_adj(&mut posn_q, n);
+		seen_posns.insert(posn);
+		posn_q.retain(|x| !seen_posns.contains(x));
+		posn_q.sort_by(MazePosition::compare);
+		posn = posn_q.pop().expect("Maze is unsolvable!");
+	}
+
+	posn.n
+}
+
+#[test]
+fn test_solve_maze()
+{
+	let mut v = Vec::new();
+	START_POSN.push_adj(&mut v, 10);
+	println!("{:?}", v);
+	assert!(11 == solve_maze(10, mkpos(7, 4)));
+}
+
 fn day13()
 {
+	let n = 1352;
+	let mut v = Vec::new();
+	let mut s = BTreeSet::new();
+	v.push(START_POSN);
+	while let Some(p) = v.pop() {
+		p.push_adj(&mut v, n);
+		s.insert(p);
+		v.retain(|x| !s.contains(x) && x.n < 50);
+		v.sort_by(MazePosition::compare);
+	}
+	println!("Shortest route to (31, 39): {} steps, number of locations in under 50 steps: {}",
+	         solve_maze(n, mkpos(31, 39)),
+	         s.len());
 }
 fn day14()
 {
