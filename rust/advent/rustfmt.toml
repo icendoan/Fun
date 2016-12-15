@@ -136,7 +136,7 @@ force_format_strings = true
 
 # hard_tabs <boolean> Default: false
 # Use tab characters for indentation, spaces for alignment
-hard_tabs = true
+hard_tabs = false
 
 # wrap_comments <boolean> Default: false
 # Break comments to fit on the line
@@ -155,8 +155,6 @@ match_block_trailing_comma = true
 # match_wildcard_trailing_comma <boolean> Default: true
 # Put a trailing comma after a wildcard arm
 
-# closure_block_indent_threshold<signed integer> Default: 5
-# How many lines a closure must have before it is block indented. -1 means never use block indent.
 
 # use_try_shorthand <boolean> Default: false
 # Replace uses of the try! macro by the ? shorthand
