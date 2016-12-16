@@ -14,11 +14,14 @@ use statics::*;
 
 fn main()
 {
-   let fns = [main, day1, day2, day3, day4, day5, day6, day7, day8, day9, day10, day11, day12,
-              day13, day14, day15, day16, day17, day18, day19, day20, day21, day22, day23, day24,
-              day25];
+   let fns = [day1, day2, day3, day4, day5, day6, day7, day8, day9, day10, day11, day12, day13,
+              day14, day15, day16, day17, day18, day19, day20, day21, day22, day23, day24, day25];
 
-   fns[14]();
+   for (i, f) in fns.iter().enumerate()
+   {
+      print!("Day {}: ", i);
+      f();
+   }
 }
 
 #[derive(Copy,Clone)]
@@ -2128,8 +2131,6 @@ fn day12()
    regs = [0; 4];
    regs[2] = 1;
    eval_asb(&day12::CODE[..], &mut regs);
-
-   println!("{:?}", asb_opt(&day12::CODE[..]));
 
    println!("Value of register A: {}, value of register A with initialisation: {}",
             a_first,
