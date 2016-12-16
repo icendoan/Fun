@@ -7,7 +7,7 @@ use crypto::md5;
 use std::cmp;
 
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
-use std::fmt::{self, Display, Formatter};
+use std::fmt::{self, Display, Formatter, Write};
 
 mod statics;
 use statics::*;
@@ -18,7 +18,7 @@ fn main()
               day13, day14, day15, day16, day17, day18, day19, day20, day21, day22, day23, day24,
               day25];
 
-   fns[13]();
+   fns[14]();
 }
 
 #[derive(Copy,Clone)]
@@ -2278,48 +2278,132 @@ fn day13()
             s.len());
 }
 
-fn mk_otp(salt: &str) -> u64
+fn mkhash(md5: &mut md5::Md5,
+          salt: &str,
+          index: usize,
+          buf: &mut String,
+          out: &mut [u8; 16],
+          num_stretches: usize)
 {
+   buf.clear();
+   buf.push_str(salt);
+   write!(buf, "{}", index).unwrap();
+   md5.reset();
+   md5.input(buf.as_bytes());
+   md5.result(out);
+   for _ in 0..num_stretches
+   {
+      buf.clear();
+      write_hex_str(out, buf);
+      md5.reset();
+      md5.input(buf.as_bytes());
+      md5.result(out);
+   }
+}
+
+fn has_quint(hash: &[u8], req: char) -> bool
+{
+   let mut chars = [' '; 5];
+
+   let mut r = false;
+   for (i, c) in hex_chars(hash.iter()).enumerate()
+   {
+      chars[i % 5] = c;
+      r |= chars.iter().fold((true, req), |(b, c), c2| (b && c == *c2, c)).0;
+   }
+   r
+}
+
+fn has_triple(hash: &[u8]) -> Option<char>
+{
+   let mut chars = [' '; 3];
+
+   for (i, c) in hex_chars(hash.iter()).enumerate()
+   {
+      chars[i % 3] = c;
+      if chars.iter().fold((true, c), |(b, c), c2| (b && c == *c2, c)).0
+      {
+         return Some(c);
+      }
+   }
+
+   None
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct KeyQ
+{
+   hash: [u8; 16],
+   c: char,
+   index: usize,
+}
+
+fn mk_otp(salt: &str, num_stretches: usize) -> u64
+{
+
+   let mut index: usize = 0;
    let mut txt = String::with_capacity(128);
-   let mut keys = Vec::new();
-   let mut hashes = VecDeque::with_capacity(1000);
+   let mut keys: Vec<KeyQ> = Vec::new();
+   let mut queue: Vec<KeyQ> = Vec::new();
    let mut buf = [0; 16];
    let mut md5 = md5::Md5::new();
-   let mut c = ' ';
-   let mut hex = String::new();
+
    while keys.len() < 64
    {
-      let hash = if hashes.is_empty()
+      mkhash(&mut md5, salt, index, &mut txt, &mut buf, num_stretches);
+      for keyq in &queue
       {
-         txt.truncate(salt.len());
-         txt.push_str(index.to_string());
-         md5.reset();
-         md5.input(txt.as_bytes());
-         md5.result(&mut buf);
-         buf
-      }
-      else
-      {
-         hashes.pop_front().unwrap()
-      };
-
-      write_hex_str(&hash[..], &mut hex);
-
-      c = hex.chars().windows(3).fold(' ', |x, [a, b, c]| if a == b && b == c { a } else { x });
-      if c != ' '
-      {
-         for ix in 0..1000 - hashes.len()
+         if has_quint(&buf[..], keyq.c)
          {
-
+            keys.push(keyq.clone());
          }
       }
 
+      if let Some(c) = has_triple(&buf[..])
+      {
+         queue.push(KeyQ {
+            hash: buf.clone(),
+            c: c,
+            index: index,
+         });
+      }
+
       index += 1;
+      queue.retain(|x| (index - x.index) < 1000 && !keys.contains(x))
    }
+
+   keys.sort_by(|x, y| x.index.cmp(&y.index));
+   keys.get(63).unwrap().index as u64
+}
+
+#[test]
+fn test_otp()
+{
+   let salt = "abc";
+   let last_key = mk_otp(salt, 0);
+   assert!(22728 == last_key);
+
+   let mut md5 = md5::Md5::new();
+   let mut hash = [0; 16];
+   let mut txt = String::new();
+   mkhash(&mut md5, salt, 39, &mut txt, &mut hash, 0);
+   assert!(Some('e') == has_triple(&hash[..]));
+
+   mkhash(&mut md5, salt, 816, &mut txt, &mut hash, 0);
+   assert!(has_quint(&hash[..], 'e'));
+
+   mkhash(&mut md5, salt, 0, &mut txt, &mut hash, 2016);
+   let hash_str = to_hex_str(&hash[..]);
+   println!("{}", hash_str);
+   assert!("a107ff634856bb300138cac6568c0f24" == hash_str);
+   assert!(22551 == mk_otp(salt, 2016));
 }
 
 fn day14()
 {
+   println!("Index of the 64th key: {}, with stretching: {}",
+            mk_otp("jlmsuwbz", 0),
+            mk_otp("jlmsuwbz", 2016));
 }
 fn day15()
 {
@@ -2415,6 +2499,11 @@ fn palindrome(txt: &str) -> bool
 static HEX_CHARS: [char; 16] = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c',
                                 'd', 'e', 'f'];
 
+fn to_hex_chars(byte: u8) -> (char, char)
+{
+   (HEX_CHARS[((byte & 0xf0) >> 4) as usize], HEX_CHARS[(byte & 0x0f) as usize])
+}
+
 #[allow(dead_code)]
 fn write_hex_str(bytes: &[u8], out: &mut String)
 {
@@ -2431,6 +2520,45 @@ fn to_hex_str(bytes: &[u8]) -> String
    let mut s = String::with_capacity(bytes.len());
    write_hex_str(bytes, &mut s);
    s
+}
+
+fn hex_chars<'a, T: Iterator<Item = &'a u8>>(bytes: T) -> HexChars<'a, T>
+{
+   HexChars {
+      txt: bytes,
+      next: None,
+   }
+}
+
+struct HexChars<'a, T: Iterator<Item = &'a u8>>
+{
+   txt: T,
+   next: Option<char>,
+}
+
+impl<'a, T: Iterator<Item = &'a u8>> Iterator for HexChars<'a, T>
+{
+   type Item = char;
+   fn next(&mut self) -> Option<char>
+   {
+      if self.next.is_some()
+      {
+         self.next.take()
+      }
+      else
+      {
+         if let Some(b) = self.txt.next()
+         {
+            let (u, l) = to_hex_chars(*b);
+            self.next = Some(l);
+            Some(u)
+         }
+         else
+         {
+            None
+         }
+      }
+   }
 }
 
 fn get_or_insert_mut<'a, 'b: 'a, S, T>(map: &'a mut BTreeMap<S, T>, key: &'b S, alt: T) -> &'a mut T
