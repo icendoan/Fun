@@ -41,7 +41,7 @@ fn parse_λ(src: &str) -> λ
     fn lex(src: &str) -> Vec<Emptyλ>
     {
         let mut v = Vec::new();
-        let mut n = 0;
+        let mut n: u64 = 0;
         let mut ns = false;
         for c in src.chars()
         {
@@ -52,28 +52,28 @@ fn parse_λ(src: &str) -> λ
                 ')' => {v.push(Emptyλ::AC); ns = false},
                 '[' => {v.push(Emptyλ::PO); ns = false},
                 ']' => {v.push(Emptyλ::PC); ns = false},
-                c if c.is_numeric && !ns =>
+                c if c.is_numeric() && !ns =>
                 {
                     ns = true;
                     n = if let Some(x) = c.to_digit(10)
                     {
-                        x
+                        x as u64
                     }
                     else
                     {
                         println!("Lex error, could not read number");
-                        return;
+                        return v;
                     }
                 },
-                c if c.is_numeric && ns =>
+                c if c.is_numeric() && ns =>
                 {
                     n = match c.to_digit(10)
                     {
-                        Some(x) => (n * 10) + x,
+                        Some(x) => (n * 10) + x as u64,
                         None =>
                         {
                             println!("Lex error, could not read number");
-                            return;
+                            return v;
                         }
                     }
                 },
@@ -84,13 +84,15 @@ fn parse_λ(src: &str) -> λ
                     n = 0;
                     ns = false;
                 }
+
+                _ => ()
             }
         }
 
         v
     }
 
-    let mut term = λbuilder::E;
+    let mut term = λ::E;
     let mut termstack = Vec::new();
     let mut tokens = lex(src);
     tokens.reverse();
@@ -102,26 +104,38 @@ fn parse_λ(src: &str) -> λ
             Emptyλ::V(v) => match term
             {
                 λ::E => λ::V(v),
-                _ => return println!("Parse error"),
+                _ =>
+                {
+                    println!("Parse error");
+                    return λ::E;
+                },
             },
 
             Emptyλ::L => λ::L(box term),
             Emptyλ::PO | Emptyλ::PC =>
             {
                 termstack.push(term);
-                term = λ::E;
+                λ::E
             },
-            Emptyλ::AC if term == λ::E => (),
-            Emptyλ::AC => return println!("Parse error"),
+            Emptyλ::AC if term == λ::E => λ::E,
+            Emptyλ::AC =>
+            {
+                println!("Parse error");
+                return λ::E;
+            },
             Emptyλ::AO =>
             {
                 let p = match termstack.pop()
                 {
                     Some(x) => x,
-                    _ => return println!("Parse error"),
+                    _ =>
+                    {
+                        println!("Parse error");
+                        return λ::E;
+                    },
                 };
 
-                term = λ::A(box term, box x);
+                λ::A(box term, box p)
             },
         }
     }
@@ -129,46 +143,61 @@ fn parse_λ(src: &str) -> λ
     term
 }
 
-fn eval(l: &mut λ, c: &mut Vec<λ>)
-{
-
-}
-
-fn β(l: &mut λ, r: &λ, ix: u64)
+fn β(l: &mut λ, r: &λ)
 {
     let mut stack = Vec::new();
     let mut curr = l;
     let e = λ::E;
+    let mut ix = 0; // value of V to replace
 
-    while (*curr != λ::E) && stack.is_empty()
+    loop
     {
         match *curr
         {
-            λ::L(box ref mut x) => curr = x,
+            λ::L(box ref mut x) =>
+            {
+                curr = x;
+                ix += 1;
+            },
             λ::A(box ref mut x, box ref mut cont) =>
             {
-                stack.push(cont);
+                stack.push((cont, ix));
                 curr = x;
             },
             λ::V(v) if v == ix =>
             {
                 *curr = r.clone();
-                curr = match stack.pop()
+                match stack.pop()
                 {
-                    Some(ptr) => ptr,
-                    None => &e,
+                    Some((ptr, nix)) =>
+                    {
+                        curr = ptr;
+                        ix = nix;
+                    },
+                    None => break,
                 };
             },
             λ::V(v) =>
             {
-                curr = match stack.pop()
+                match stack.pop()
                 {
-                    Some(ptr) => ptr,
-                    None => &e,
+                    Some((ptr, nix)) =>
+                    {
+                        curr = ptr;
+                        ix = nix;
+                    },
+                    None => break,
                 };
             },
+
+            λ::E => break,
         }
     }
+}
+
+fn η(term: &mut λ)
+{
+
 }
 
 fn s() -> λ
@@ -184,6 +213,24 @@ fn k() -> λ
     λ::L(box λ::L(box λ::V(1)))
 }
 
+fn i() -> λ
+{
+    // λ0
+    λ::L(box λ::V(0))
+}
+
+#[test]
+fn test_β()
+{
+    // λλ1 λ0 => λλ0
+    let mut l = k();
+    let mut r = i();
+    β(&mut l, &r);
+    // β just substitutes variables, doesn't actually unwrap the outer lambda
+    let result = λ::L(box λ::L(box λ::L(box λ::V(0))));
+    assert!(l == result)
+}
+
 impl Display for λ
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result
@@ -193,6 +240,7 @@ impl Display for λ
             λ::L(box ref lam) => write!(f, "λ{}", lam),
             λ::V(ref x) => write!(f, "{}", x),
             λ::A(box ref l, box ref r) => write!(f, "({})[{}]", l, r),
+            λ::E => write!(f, "ε"),
         }
     }
 }
@@ -207,7 +255,7 @@ fn scan_matching(x: &str, s: char, e: char) -> &str
             c if c == s => ctr += 1,
             c if c == e => if ctr == 0
             {
-                return x[0..ix];
+                return &x[0..ix];
             }
             else
             {
@@ -216,4 +264,6 @@ fn scan_matching(x: &str, s: char, e: char) -> &str
             c => (),
         }
     }
+
+    x
 }
