@@ -318,7 +318,6 @@
 (define-key eshell-mode-map (kbd "C-K") 'eshell-previous-matching-input-from-input)
 (define-key eshell-mode-map (kdb "C-J") 'eshell-next-matching-input-from-input)
 
-
 (load-theme 'apropospriate-dark t)
 
 (show-paren-mode 1)
@@ -344,6 +343,10 @@
 	  (lambda()
 	    (set (make-local-variable 'compile-command) (concat "javac " buffer-file-name))))
 
+
+(require 'magit)
+(require 'magit-gh-pulls)
+(add-hook 'magit-mode-hook 'turn-on-magit-gh-pulls)
 
 ;; desktop mode
 (desktop-save-mode 1)
@@ -398,7 +401,7 @@
  '(magit-popup-use-prefix-argument (quote default))
  '(package-selected-packages
    (quote
-    (package+ package-utils helm-anything helm-dictionary helm-dired-history helm-dired-recent-dirs helm-etags-plus helm-flycheck helm-fuzzy-find helm-ghc helm-helm-commands helm-idris helm-ispell helm-mode-manager svg-clock gnuplot gnuplot-mode browse-at-remote meghanada firebelly-theme foggy-night-theme darktooth-theme danneskjold-theme birds-of-paradise-plus-theme apropospriate-theme adaptive-wrap zone-sl fiplr pytest anaconda-mode groovy-mode helm-j-cheatsheet j-mode clipmon linum-relative evil-numbers fstar-mode latex-math-preview javadoc-lookup javaimp javap-mode maven-test-mode tss ein gnu-apl-mode mu4e-maildirs-extension evil-mu4e dired+ window-purpose vlf smart-compile rustfmt racer pdf-tools paredit-everywhere origami multiple-cursors magic-latex-buffer latex-preview-pane latex-pretty-symbols latex-extra js2-mode jedi java-imports idris-mode haskell-mode gradle-mode gnugo flycheck-rust f evil-tabs evil-surround evil-smartparens evil-search-highlight-persist evil-paredit evil-org evil-multiedit evil-mc evil-magit elpy dedicated csharp-mode company-racer company-jedi color-theme-sanityinc-solarized cargo)))
+    (magit-gh-pulls package+ package-utils helm-anything helm-dictionary helm-dired-history helm-dired-recent-dirs helm-etags-plus helm-flycheck helm-fuzzy-find helm-ghc helm-helm-commands helm-idris helm-ispell helm-mode-manager svg-clock gnuplot gnuplot-mode browse-at-remote meghanada firebelly-theme foggy-night-theme darktooth-theme danneskjold-theme birds-of-paradise-plus-theme apropospriate-theme adaptive-wrap zone-sl fiplr pytest anaconda-mode groovy-mode helm-j-cheatsheet j-mode clipmon linum-relative evil-numbers fstar-mode latex-math-preview javadoc-lookup javaimp javap-mode maven-test-mode tss ein gnu-apl-mode mu4e-maildirs-extension evil-mu4e dired+ window-purpose vlf smart-compile rustfmt racer pdf-tools paredit-everywhere origami multiple-cursors magic-latex-buffer latex-preview-pane latex-pretty-symbols latex-extra js2-mode jedi java-imports idris-mode haskell-mode gradle-mode gnugo flycheck-rust f evil-tabs evil-surround evil-smartparens evil-search-highlight-persist evil-paredit evil-org evil-multiedit evil-mc evil-magit elpy dedicated csharp-mode company-racer company-jedi color-theme-sanityinc-solarized cargo)))
  '(purpose-use-default-configuration nil)
  '(purpose-user-name-purposes
    (quote
