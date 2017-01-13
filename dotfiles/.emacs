@@ -10,8 +10,6 @@
 ;; currently installed packages:
 (package-install-selected-packages)
 
-;; START
-
 (setq inhibit-splash-screen t)
 (set-default-font "Inconsolata:size=11")
 
@@ -28,8 +26,8 @@
 (global-set-key (kbd "C-<tab>") #'company-complete-common-or-cycle)
 (setq company-tooltip-align-annotations t)
 
-(setq racer-cmd (expand-file-name "/home/tylercapital.ads/cquilley/git/racer/target/release/racer"))
-(setq racer-rust-src-path (expand-file-name "~/rustc-nightly/src/"))
+(setq racer-cmd (expand-file-name "/home/caleb/git/racer/target/release/racer"))
+(setq racer-rust-src-path (expand-file-name "~/src/rust/src/"))
 (add-hook 'rust-mode-hook #'racer-mode)
 (require 'company-racer)
 (add-to-list 'company-backends 'company-racer)
@@ -71,10 +69,6 @@
 (idris-define-evil-keys)
 (evil-leader/set-leader "<SPC>")
 (evil-mode 1)
-
-;;(require 'dedicated)
-;;(require 'window-purpose)
-;;(purpose-mode)
 
 (evil-leader/set-key "+" 'evil-numbers/inc-at-pt)
 (evil-leader/set-key "-" 'evil-numbers/dec-at-pt)
@@ -155,6 +149,11 @@
 
 (show-paren-mode 1)
 (global-linum-mode)
+(linum-relative-global-mode)
+
+(require 'magit)
+(require 'magit-gh-pulls)
+(turn-on-magit-gh-pulls)
 
 ;; Org-mode
 (setq org-log-done 'time)
@@ -167,7 +166,7 @@
 (add-hook 'rust-mode-hook
 	  (lambda ()
 	    (if (file-exists-p "Cargo.toml")
-		(set (make-local-variable 'compile-command) "cargo check --lib && cargo test") 
+		(set (make-local-variable 'compile-command) "cargo check --lib") 
 	      (if (file-exists-p "../Cargo.toml")
 		  (set (make-local-variable 'compile-command) "cargo check --manifest-path ../Cargo.toml --lib")
 		(set (make-local-variable 'compile-command) (concat "rustc " buffer-file-name))))))
