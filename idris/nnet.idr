@@ -45,9 +45,9 @@ error p test =
   
 trP : List (Vect n Double, Double) -> Double -> Perceptron n -> Perceptron n
 trP [] _ p = p
-trP ((train_input, train_output) :: trains) _ p@(MkP b w) = 
+trP ((train_input, train_output) :: trains) delta p@(MkP b w) = 
   let output = eval p train_input in
-  MkP b (zipWith (\weight, input => weight + (train_output - output) * input) w train_input)
+  trP trains delta $ MkP b (zipWith (\weight, input => weight + (train_output - output) * input * delta) w train_input)
  
   
 trainPerceptron : List (Vect n Double, Double) -> List (Vect n Double, Double) -> Double -> Double -> Perceptron n -> Perceptron n
@@ -57,13 +57,7 @@ trainPerceptron train test delta err p = assert_total $
   if err < rsq (map (eval trained) test_inputs) test_outputs
   then trainPerceptron train test delta err trained
   else trained
-  where
-    trP : List (Vect n Double, Double) -> Double -> Perceptron n -> Perceptron n
-    trP [] _ p = p
-    trP ((train_input, train_output) :: trains) _ p@(MkP b w) = 
-      let output = eval p train_input in
-      MkP b (zipWith (\weight, input => weight + (train_output - output) * input) w train_input)
-      
+          
 and_training : List (Vect 2 Double, Double)
 and_training = [([0, 0], 0),([1, 0], 0), ([0, 1], 0), ([1, 1], 1)]
 
