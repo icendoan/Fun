@@ -1,9 +1,11 @@
+#![feature(slice_patterns)]
 use std::collections::HashMap;
-use std::io::{self, Read, Write, BufRead, BufWrite};
+use std::io::{self, Read, Write, BufRead, BufWriter};
 use std::rc::Rc;
 type I = i64;
 type F = f64;
 type S = usize;
+type B = bool;
 #[derive(Clone,PartialOrd,PartialEq,Debug)]
 enum K0<T>
 {
@@ -21,6 +23,7 @@ enum Tok<'a>
 trait KT: PartialEq + PartialOrd + Clone
 {
 }
+impl KT for B {}
 impl KT for I {}
 impl KT for char {}
 impl KT for F {}
@@ -29,6 +32,7 @@ impl KT for KA {} // int char mix err
 #[derive(Clone,PartialOrd,PartialEq,Debug)]
 enum KA
 {
+    KB(K<B>),
     KI(K<I>),
     KC(K<char>),
     KF(K<F>),
@@ -102,6 +106,7 @@ impl KA
     {
         match *self
         {
+            KA::KB(ref kb) => kb.len(),
             KA::KI(ref ki) => ki.len(),
             KA::KC(ref kc) => kc.len(),
             KA::KF(ref kf) => kf.len(),
@@ -114,6 +119,7 @@ impl KA
     {
         match *self
         {
+            KA::KB(ref k) => k.a(),
             KA::KI(ref k) => k.a(),
             KA::KC(ref k) => k.a(),
             KA::KF(ref k) => k.a(),
@@ -428,6 +434,32 @@ fn meq(r: KA) -> KA
     KA::KE("nyi")
 }
 
+/* apply */
+fn dat(l: KA, r: KA) -> KA
+{
+    KA::KE("nyi")
+}
+/* type */
+fn mat(r: KA) -> KA
+{
+    KA::KE("nyi")
+}
+/* str */
+fn mdol(r: KA) -> KA
+{
+    KA::KE("nyi")
+}
+/* if/cast/dot/mmul/
+(c:bool atom)$a,b->a if c=t, b if c=f
+(t:int atom)$(x:s) -> x:tassoc t
+(t:int list)$(x:s) -> t$'x
+(a:float matrix l n)$(b: float matrix n r)->float matrix l r
+*/
+fn ddol(l: KA, r: KA) -> KA
+{
+    KA::KE("nyi")
+}
+
 fn eachr<F: Fn(KA) -> KA>(f: F, r: KA) -> KA
 {
     match r
@@ -447,9 +479,18 @@ fn eachb<F: Fn(KA, KA) -> KA>(l: K<KA>, f: F, r: K<KA>) -> KA
 {
     KA::KE("nyi")
 }
-
+fn scan<F: Fn(KA, KA) -> KA>(f: F, l: KA, r: K<KA>) -> KA
+{
+    KA::KE("nyi")
+}
+fn fold<F: Fn(KA, KA) -> KA>(f: F, l: KA, r: K<KA>) -> KA
+{
+    KA::KE("nyi")
+}
+// verbs:+!*(/:)#,-(\:)/\@$=
 fn lex<'a>(s: &'a str) -> Vec<Tok<'a>>
 {
+    #[derive(Copy,Clone,PartialEq,Eq)]
     enum LTy
     {
         N,
@@ -459,14 +500,194 @@ fn lex<'a>(s: &'a str) -> Vec<Tok<'a>>
     struct L<'a>
     {
         t: &'a str,
+        s: &'a str,
         m: LTy,
+        p: S,
     }
-    impl<'a> Iterator for L<'a> {}
+    impl<'a> Iterator for L<'a>
+    {
+        type Item = Tok<'a>;
+        fn next(&mut self) -> Option<Tok<'a>>
+        {
+            if self.t.is_empty()
+            {
+                return None;
+            }
+
+            loop
+            {
+                let m = self.m;
+                let p = self.p;
+
+                if p >= self.t.len()
+                {
+                    println!("Hit end of input");
+                    return None;
+                }
+
+                match m
+                {
+                    LTy::N =>
+                    {
+                        if ca(self.t, p).is_alphanumeric()
+                        {
+                            self.p += 1;
+                        }
+                        else
+                        {
+                            let r = &self.t[0..p];
+                            self.t = &self.t[p..];
+                            self.m = LTy::U;
+                            self.p = 0;
+                            return Some(Tok::N(r));
+                        }
+                    },
+                    // verbs:+!*(/:)#,-(\:)/\@$=
+                    LTy::V =>
+                    {
+                        match &self.t[..p]
+                        {
+                            c if "+!*-@$#,:".contains(c) =>
+                            {
+                                self.t = &self.t[p..];
+                                self.p = 0;
+                                return Some(Tok::V(c));
+                            },
+                            "/:" =>
+                            {
+                                let (a, r) = self.t.split_at(p);
+                                self.p = 0;
+                                self.t = r;
+                                return Some(Tok::A(a));
+                            },
+                            r"\:" =>
+                            {},
+                            r"/" | r"\" =>
+                            {
+                                if ca(self.t, p + 1) == ':'
+                                {
+                                    self.p += 1;
+                                    continue;
+                                }
+                                else
+                                {
+                                    let (a, r) = self.t.split_at(p);
+                                    self.t = r;
+                                    self.p = 0;
+                                    self.m = LTy::U;
+                                    return Some(Tok::A(a));
+                                }
+                            },
+
+                            _ =>
+                            {
+                                println!("Parse err: expected verb, found: {}",
+                                         &self.t[..p]);
+                                return None;
+                            },
+                        }
+                    },
+                    LTy::U =>
+                    {
+                        let c = ca(self.t, self.p);
+                        if c.is_alphanumeric()
+                        {
+                            self.m = LTy::N;
+                            continue;
+                        }
+
+                        if "+!*-@$#/\\:".contains(c)
+                        {
+                            self.m = LTy::V;
+                            continue;
+                        }
+                        println!("char: {}", c);
+                        return None;
+                    },
+                }
+            }
+
+            None
+        }
+    }
+
+    (L {
+            t: s,
+            s: "",
+            m: LTy::U,
+            p: 0,
+        })
+        .collect()
+
 }
+
 fn pr(k: KA)
 {
+    println!("{:?}", k)
 }
+
+fn ca(s: &str, p: S) -> char
+{
+    s.as_bytes()[p] as char
+}
+
+fn nn(n: &str, v: &HashMap<String, KA>) -> KA
+{
+    KA::KE("nyi")
+}
+
+fn ev(s: &str, v: &mut HashMap<String, KA>)
+{
+    let mut tok = lex(s);
+    let mut x = None;
+    while let Some(t) = tok.pop()
+    {
+        match t
+        {
+            Tok::N(n) =>
+            {
+                let k = nn(n, v);
+                if let Some(z) = x
+                {
+                    x = Some(dat(k, z))
+                }
+                else
+                {
+                    x = Some(k);
+                }
+            },
+
+            Tok::V(v) =>
+            {},
+
+            Tok::A(a) =>
+            {},
+        }
+    }
+}
+
 fn main()
 {
     let mut vars: HashMap<String, KA> = HashMap::new();
+    let stdin = io::stdin();
+    let mut s = String::new();
+    loop
+    {
+        s.clear();
+        match stdin.read_line(&mut s)
+        {
+            Ok(0) => continue,
+            Ok(_) =>
+            {
+                match s.as_str()
+                {
+                    r"\\" => return,
+                    _ => (),
+                }
+
+                ev(&s, &mut vars)
+            },
+            _ => return,
+        }
+    }
 }
