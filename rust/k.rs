@@ -1,3 +1,5 @@
+// todos: advs, (), rewrite lexer (again!)
+
 #![feature(slice_patterns, advanced_slice_patterns, conservative_impl_trait, box_syntax, box_patterns)]
 #![allow(dead_code, unused_variables)]
 use std::collections::HashMap;
@@ -40,6 +42,7 @@ enum KA
     KF(K<F>),
     KK(K<KA>),
     KE(&'static str),
+    KZ,
 }
 impl<T: KT> K0<T>
 {
@@ -114,6 +117,7 @@ impl KA
             KA::KF(ref kf) => kf.len(),
             KA::KK(ref kk) => kk.len(),
             KA::KE(_) => 0,
+            KA::KZ => 0,
         }
     }
 
@@ -127,6 +131,7 @@ impl KA
             KA::KF(ref k) => k.a(),
             KA::KK(ref k) => k.a(),
             KA::KE(_) => false,
+            KA::KZ => false,
         }
     }
 }
@@ -394,10 +399,10 @@ fn dhash(l: KA, r: KA) -> KA
 {
     KA::KE("nyi")
 }
-/* first */
+/* count */
 fn mhash(r: KA) -> KA
 {
-    KA::KE("nyi")
+    KA::KI(mk(0, r.len() as I))
 }
 /* join */
 fn dcomm(l: KA, r: KA) -> KA
@@ -485,129 +490,94 @@ fn fold<F: FnOnce(KA, KA) -> KA>(f: F) -> impl FnOnce(KA, KA) -> KA
 // verbs:+!*(/:)#,-(\:)/\@$=
 fn lex<'a>(s: &'a str) -> Vec<Tok<'a>>
 {
-    #[derive(Copy,Clone,PartialEq,Eq)]
-    enum LTy
+    enum LM
     {
-        N,
         V,
+        N,
         U,
     }
     struct L<'a>
     {
-        t: &'a str,
-        m: LTy,
-        p: S,
+        m: LM,
+        s: &'a str,
+        i: S,
     }
     impl<'a> Iterator for L<'a>
     {
         type Item = Tok<'a>;
         fn next(&mut self) -> Option<Tok<'a>>
         {
-            if self.t.is_empty()
+            let mut i = self.i;
+            while i < self.s.len()
             {
-                return None;
+                println!("{}", &self.s[..i]);
+                match self.s[..i].as_bytes()
+                {
+                    b"/:" | b"\\:" | b"'" =>
+                    {
+                        self.i = 1;
+                        let (h, t) = self.s.split_at(i);
+                        self.s = t;
+                        return Some(Tok::A(h));
+                    },
+
+                    b"/" | b"\\" if self.s.len() == 1 =>
+                    {
+                        self.i = 1;
+                        let(h,t)=self.s.split_at(i);
+                        self.s=t;
+                        return Some(Tok::A(h))
+                    },
+
+                    b"/" | b"\\" =>
+                    {
+                        i += 1;
+                        continue
+                    }
+
+                    &[47u8, x] | &[92, x] if x != (':' as u8) => // 47 = /,92 = \
+                    {
+                        self.i = 1;
+                        let (h, t) = self.s.split_at(i-1);
+                        self.s=t;
+                        return Some(Tok::A(h))
+                    },
+
+                    &[x] if b"+!*#,-@$=".contains(&x) =>
+                    {
+                        self.i = 1;
+                        let (h, t) = self.s.split_at(i);
+                        self.s = t;
+                        return Some(Tok::V(h))
+                    },
+
+                    &[ref cs.., x] if b"+!*#,-@$=".contains(&x) =>
+                    {
+                        self.i = 1;
+                        let (h, t) = self.s.split_at(i-1);
+                        self.s = t;
+                        return Some(Tok::N(h))
+                    },
+
+                    //&[ref cs..] if cs.len() == self.s.len() =>
+                    //{
+                    //    self.i = 1;
+                    //    let (h, t) = self.s.split_at(i);
+                    //    self.s = t;
+                    //    return Some(Tok::N(h))
+                    //},
+
+                    &[] => return None,
+                    _ => (),
+                }
+                i += 1;
             }
 
-            loop
-            {
-                let m = self.m;
-                let p = self.p;
-
-                if p >= self.t.len()
-                {
-                    println!("Hit end of input");
-                    return None;
-                }
-
-                match m
-                {
-                    LTy::N =>
-                    {
-                        if ca(self.t, p).is_alphanumeric()
-                        {
-                            self.p += 1;
-                        }
-                        else
-                        {
-                            let r = &self.t[0..p];
-                            self.t = &self.t[p..];
-                            self.m = LTy::U;
-                            self.p = 0;
-                            return Some(Tok::N(r));
-                        }
-                    },
-                    // verbs:+!*(/:)#,-(\:)/\@$=
-                    LTy::V =>
-                    {
-                        match &self.t[..p]
-                        {
-                            c if "+!*-@$#,:".contains(c) =>
-                            {
-                                self.t = &self.t[p..];
-                                self.p = 0;
-                                return Some(Tok::V(c));
-                            },
-                            "/:" | r"\:" | "':" =>
-                            {
-                                let (a, r) = self.t.split_at(p);
-                                self.p = 0;
-                                self.t = r;
-                                return Some(Tok::A(a));
-                            },
-                            r"/" | r"\" | "'" =>
-                            {
-                                if ca(self.t, p + 1) == ':'
-                                {
-                                    self.p += 1;
-                                    continue;
-                                }
-                                else
-                                {
-                                    let (a, r) = self.t.split_at(p);
-                                    self.t = r;
-                                    self.p = 0;
-                                    self.m = LTy::U;
-                                    return Some(Tok::A(a));
-                                }
-                            },
-
-                            _ =>
-                            {
-                                println!("Parse err: expected verb, found: {}",
-                                         &self.t[..p]);
-                                return None;
-                            },
-                        }
-                    },
-                    LTy::U =>
-                    {
-                        let c = ca(self.t, self.p);
-                        if c.is_alphanumeric()
-                        {
-                            self.m = LTy::N;
-                            continue;
-                        }
-
-                        if "+!*-@$#/\\:".contains(c)
-                        {
-                            self.m = LTy::V;
-                            continue;
-                        }
-                        println!("char: {}", c);
-                        return None;
-                    },
-                }
-            }
+            None
         }
     }
 
-    (L {
-            t: s,
-            m: LTy::U,
-            p: 0,
-        })
-        .collect()
-
+    (L { m: LM::U, s: s, i: 1 }).collect()
 }
 
 #[derive(Clone,PartialEq,PartialOrd,Debug)]
@@ -692,15 +662,15 @@ fn mon<'a>(verb: &'a str, advs: &[&'a str], r: KA) -> KA
 {
     match verb
     {
-        "+" => madv(mplus, advs, r),
-        "!" => madv(mexcl, advs, r),
-        "*" => madv(mstar, advs, r),
-        "#" => madv(mhash, advs, r),
-        "," => madv(mcomm, advs, r),
-        "@" => madv(mat, advs, r),
-        "$" => madv(mdol, advs, r),
-        "=" => madv(meq, advs, r),
-        "-" => madv(mmin, advs, r),
+        "+" => madv(&mplus, advs, r),
+        "!" => madv(&mexcl, advs, r),
+        "*" => madv(&mstar, advs, r),
+        "#" => madv(&mhash, advs, r),
+        "," => madv(&mcomm, advs, r),
+        "@" => madv(&mat, advs, r),
+        "$" => madv(&mdol, advs, r),
+        "=" => madv(&meq, advs, r),
+        "-" => madv(&mmin, advs, r),
         _ => KA::KE("nyi"),
     }
 }
@@ -709,15 +679,15 @@ fn dya<'a>(verb: &'a str, advs: &[&'a str], l: KA, r: KA) -> KA
 {
     match verb
     {
-        "+" => dadv(dplus, advs, l, r),
-        "!" => dadv(dexcl, advs, l, r),
-        "*" => dadv(dstar, advs, l, r),
-        "#" => dadv(dhash, advs, l, r),
-        "," => dadv(dcomm, advs, l, r),
-        "@" => dadv(dat, advs, l, r),
-        "$" => dadv(ddol, advs, l, r),
-        "=" => dadv(deq, advs, l, r),
-        "-" => dadv(dmin, advs, l, r),
+        "+" => dadv(&dplus, advs, l, r),
+        "!" => dadv(&dexcl, advs, l, r),
+        "*" => dadv(&dstar, advs, l, r),
+        "#" => dadv(&dhash, advs, l, r),
+        "," => dadv(&dcomm, advs, l, r),
+        "@" => dadv(&dat, advs, l, r),
+        "$" => dadv(&ddol, advs, l, r),
+        "=" => dadv(&deq, advs, l, r),
+        "-" => dadv(&dmin, advs, l, r),
         _ => KA::KE("nyi"),
     }
 
@@ -727,46 +697,138 @@ fn dya<'a>(verb: &'a str, advs: &[&'a str], l: KA, r: KA) -> KA
 // replace with destructuring of k
 // for each adv instead
 // can maybe remove recursion as well
-fn madv<'a, F: FnOnce(KA) -> KA>(f: F, advs: &[&'a str], k: KA) -> KA
+// fn madv<'a, F: FnOnce(KA) -> KA>(f: F, advs: &[&'a str], k: KA) -> KA
+//
+//    if advs.is_empty()
+//    {
+//        return f(k);
+//    }
+//
+//    let (adv, rest) = advs.split_at(0);
+//
+//    match adv
+//    {
+//        // todo: try to avoid recursion?
+//        &["/:"] => madv(eachr(f), rest, k),
+//        &[r"\:"] => madv(eachl(f), rest, k),
+//        &["/"] | &["\\"] | &["'"] => return KA::KE("type"),
+//        _ => return KA::KE("adv?"),
+//    }
+//
+
+fn madv<'a, F: Fn(KA) -> KA>(f: &F, advs: &[&'a str], k: KA) -> KA
 {
-    if advs.is_empty()
+    match advs
     {
-        return f(k);
-    }
-
-    let (adv, rest) = advs.split_at(0);
-
-    match adv
-    {
-        // todo: try to avoid recursion?
-        &["/:"] => madv(eachr(f), rest, k),
-        &[r"\:"] => madv(eachl(f), rest, k),
-        &["/"] | &["\\"] | &["'"] => return KA::KE("type"),
-        _ => return KA::KE("adv?"),
+        &["'", ref advs..] => match k
+        {
+            KA::KK(ks) => rz(KA::KK(wr(ks.i().map(|k| madv(f, advs, k.clone())).collect()))),
+            KA::KI(ki) => rz(KA::KK(wr(ki.i().map(|i| madv(f, advs, f(KA::KI(mk(0, *i))))).collect()))),
+            KA::KC(kc) => rz(KA::KK(wr(kc.i().map(|i| madv(f, advs, f(KA::KC(mk(0, *i))))).collect()))),
+            KA::KF(kf) => rz(KA::KK(wr(kf.i().map(|i| madv(f, advs, f(KA::KF(mk(0, *i))))).collect()))),
+            KA::KB(kb) => rz(KA::KK(wr(kb.i().map(|i| madv(f, advs, f(KA::KB(mk(0, *i))))).collect()))),
+            _ => k, // KE,KZ
+        },
+        &[] => f(k),
+        _ => KA::KE("adv?"),
     }
 }
 
-fn dadv<'a, F: FnOnce(KA, KA) -> KA>(f: F, advs: &[&'a str], l: KA, r: KA) -> KA
+// if / or \ are at the top of adv, then ignore l, and just f(/|\)r
+fn dadv<'a, F: Fn(KA, KA) -> KA>(f: &F, advs: &[&'a str], l: KA, r: KA) -> KA
 {
-    if advs.is_empty()
-    {
-        return f(l, r);
-    }
+    KA::KE("dadv nyi")
+}
 
-    let (adv, rest) = advs.split_at(0);
-    match adv
+fn rz(k: KA) -> KA
+{
+    #[derive(Clone)]
+    enum ST
     {
-        &["/:"] | &[r"\:"] => return KA::KE("type"),
-        &["'"] => dadv(eachb(f), rest, l, r),
-        &["/"] => dadv(fold(f), rest, l, r),
-        &["\\"] => dadv(scan(f), rest, l, r),
-        _ => return KA::KE("adv?"),
+        B(Vec<bool>),
+        C(Vec<char>),
+        I(Vec<I>),
+        K(Vec<KA>),
+        F(Vec<F>),
+        Z,
+    }
+    let mut st = ST::Z;
+
+    match k.clone()
+    {
+        KA::KK(ks) =>
+        {
+            for kk in ks.i().cloned()
+            {
+                st = match (kk, st)
+                {
+                    (KA::KK(k0), ST::K(mut v)) =>
+                    {
+                        v.extend(k0.i().cloned());
+                        ST::K(v)
+                    },
+                    (KA::KK(k0), ST::Z) =>
+                    {
+                        ST::K(k0.i().cloned().collect())
+                    },
+                    (KA::KB(k0), ST::B(mut v)) =>
+                    {
+                        v.extend(k0.i().cloned());
+                        ST::B(v)
+                    },
+                    (KA::KB(k0), ST::Z) =>
+                    {
+                        ST::B(k0.i().cloned().collect())
+                    },
+                    (KA::KC(k0), ST::C(mut v)) =>
+                    {
+                        v.extend(k0.i().cloned());
+                        ST::C(v)
+                    },
+                    (KA::KC(k0), ST::Z) =>
+                    {
+                        ST::C(k0.i().cloned().collect())
+                    },
+                    (KA::KF(k0), ST::F(mut v)) =>
+                    {
+                        v.extend(k0.i().cloned());
+                        ST::F(v)
+                    },
+                    (KA::KF(k0), ST::Z) =>
+                    {
+                        ST::F(k0.i().cloned().collect())
+                    },
+                    (KA::KI(k0), ST::I(mut v)) =>
+                    {
+                        v.extend(k0.i().cloned());
+                        ST::I(v)
+                    },
+                    (KA::KI(k0), ST::Z) =>
+                    {
+                        ST::I(k0.i().cloned().collect())
+                    },
+                    _ => return k,
+                }
+            }
+
+            match st
+            {
+                ST::B(v) => KA::KB(wr(v)),
+                ST::C(v) => KA::KC(wr(v)),
+                ST::I(v) => KA::KI(wr(v)),
+                ST::F(v) => KA::KF(wr(v)),
+                ST::K(v) => KA::KK(wr(v)),
+                ST::Z => KA::KZ,
+            }
+        },
+        _ => k,
     }
 }
 
 fn ev(s: &str, v: &mut HashMap<String, KA>)
 {
     let mut ter = pa(s);
+    println!("{:?}", &ter);
     loop
     {
         match (ter.pop(), ter.pop(), ter.pop())
@@ -790,30 +852,68 @@ fn ev(s: &str, v: &mut HashMap<String, KA>)
             },
 
             // monad
+            // forced monads
             (Some(T::K(k2)), Some(T::K(k1)), None) => ter.push(T::K(dat(k1, k2))),
             (Some(T::N(n2)), Some(T::N(n1)), None) => ter.push(T::K(dat(nn(n1, v), nn(n2, v)))),
-            (Some(T::K(k2)), Some(T::V(vb, a)), None) => ter.push(T::K(mon(vb, &a[..], k2))),
-            (Some(T::N(n2)), Some(T::V(vb, a)), None) => ter.push(T::K(mon(vb, &a[..], nn(n2, v)))),
+            // possibly dyads based on adverbs
+            // if a contains / or \ then it is a dyad in a monadic position
+            // and can be called with KV
+            (Some(T::K(k2)), Some(T::V(vb, a)), None) =>
+            {
+                if a.contains(&"\\") || a.contains(&"/")
+                {
+                    ter.push(T::K(dya(vb, &a[..], k2, KA::KZ)))
+                }
+                else
+                {
+                    ter.push(T::K(mon(vb, &a[..], k2)))
+                }
+            },
+            (Some(T::N(n2)), Some(T::V(vb, a)), None) =>
+            {
+                if a.contains(&"\\") || a.contains(&"/")
+                {
+                    ter.push(T::K(dya(vb, &a[..], nn(n2, v), KA::KZ)))
+                }
+                else
+                {
+                    ter.push(T::K(mon(vb, &a[..], nn(n2, v))))
+                }
+            },
             (Some(T::N(n2)), Some(T::V(v1, a)), Some(T::V(v0, a0))) =>
             {
                 ter.push(T::V(v0, a0));
-                ter.push(T::K(mon(v1, &a[..], nn(n2, v))))
+                if a.contains(&"\\") || a.contains(&"/")
+                {
+                    ter.push(T::K(dya(v1, &a[..], nn(n2, v), KA::KZ)))
+                }
+                else
+                {
+                    ter.push(T::K(mon(v1, &a[..], nn(n2, v))))
+                }
             },
-
             (Some(T::K(k2)), Some(T::V(v1, a)), Some(T::V(v0, a0))) =>
             {
                 ter.push(T::V(v0, a0));
-                ter.push(T::K(mon(v1, &a[..], k2)))
+                if a.contains(&"\\") || a.contains(&"/")
+                {
+                    ter.push(T::K(dya(v1, &a[..], k2, KA::KZ)))
+                }
+                else
+                {
+                    ter.push(T::K(mon(v1, &a[..], k2)))
+                }
             },
 
             // dyad
             (Some(T::K(k2)), Some(T::V(vb, a)), Some(T::K(k0))) => ter.push(T::K(dya(vb, &a[..], k0, k2))),
             (Some(T::N(n2)), Some(T::V(vb, a)), Some(T::K(k0))) => ter.push(T::K(dya(vb, &a[..], nn(n2, v), k0))),
+            (Some(T::N(n2)), Some(T::V(vb, a)), Some(T::N(n0))) => ter.push(T::K(dya(vb, &a[..], nn(n2, v), nn(n0, v)))),
 
             // errs
             (Some(T::V(_, _)), Some(T::V(_, _)), _) => return pr(KA::KE("type")),
 
-            _ => return pr(KA::KE("nyi")),
+            _ => return pr(KA::KE("ev nyi")),
         }
     }
 }
