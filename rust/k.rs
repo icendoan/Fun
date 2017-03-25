@@ -490,10 +490,12 @@ fn fold<F: FnOnce(KA, KA) -> KA>(f: F) -> impl FnOnce(KA, KA) -> KA
 // verbs:+!*(/:)#,-(\:)/\@$=
 fn lex<'a>(s: &'a str) -> Vec<Tok<'a>>
 {
+    #[derive(Copy,Clone,PartialEq,Eq,Debug)]
     enum LM
     {
         V,
         N,
+        A,
         U,
     }
     struct L<'a>
@@ -505,6 +507,100 @@ fn lex<'a>(s: &'a str) -> Vec<Tok<'a>>
     impl<'a> Iterator for L<'a>
     {
         type Item = Tok<'a>;
+
+
+        fn next(&mut self) -> Option<Tok<'a>>
+        {
+            let mut i = self.i;
+            let mut m = self.m;
+            while i < self.s.len()
+            {
+                println!("[Mode: {:?}] Considering: {}", self.m, &self.s[..i]);
+                
+                match (m, self.s[..i].as_bytes())
+                {
+                    // verbs
+                    (_, c) if b"+!*#,-@$=".contains(&c) =>
+                    {
+                        self.m = LM::U;
+                        self.i = 1;
+                        let (t, r) = self.s.split_at(i);
+                        self.s = r;
+                        return Some(Tok::V(t))
+                    },
+                    // definite adverb
+                    (_, b"/:") | (_, b"\\:") | (_, b"'") =>
+                    {
+                        self.m = LM::U;
+                        self.i = 1;
+                        let (t, r) = self.s.split_at(i);
+                        self.s = r;
+                        return Some(Tok::A(t))
+                    },
+
+                    // match single / or \
+                    (LM::A, [av, r..]) =>
+                    {
+                        assert!((av == b"/") || (av == b"\\"));
+                        self.i = 1;
+                        self.m = LM::U;
+                        let (t, r) = self.s.split_at(1);
+                        self.s = r;
+                        return Some(Tok::A(t))
+                    },
+
+                    // possible adverb
+                    (_, b"/") | (_, b"\\") =>
+                    {
+                        self.m=LM::A;
+                    },
+
+                    // end of noun
+                    (LM::N, [ref n.., v]) if (b"+!*#,-@$=".contains(&v) || (v as char).is_whitespace()) && !n.is_empty() =>
+                    {
+                        self.i = 1;
+                        self.m = LM::U;
+                        let (t, r) = self.split_at(i);
+                        self.s = r;
+                        return Some(Tok::N(t))
+                    },
+
+                    //end of string
+                    (LM::N, c) if c == self.s =>
+                    {
+                        self.i = 1;
+                        self.m = LM::U;
+                        let n = self.s;
+                        self.s = "";
+                        return Some(Tok::N(n))
+                    },
+
+                    (LM::U, [c, rest..]) =>
+                    {
+                        match c as char
+                        {
+                            c if c.is_alphanumeric() => self.m = LM::N,
+                            c if "+!*#,-@$=".contains(c) => self.m = LM::V,
+                            c if c.is_whitespace() =>
+                            {
+                                // skip whitespace on token end
+                                let tr = self.s.trim();
+                                self.s = tr;
+                                i = 0;
+                            }
+                        }
+                    },
+
+                    (_, []) => return None
+
+                }
+
+                i += 1;
+            }
+
+            None
+        }
+
         fn next(&mut self) -> Option<Tok<'a>>
         {
             let mut i = self.i;
@@ -692,29 +788,6 @@ fn dya<'a>(verb: &'a str, advs: &[&'a str], l: KA, r: KA) -> KA
     }
 
 }
-
-// recursion err here
-// replace with destructuring of k
-// for each adv instead
-// can maybe remove recursion as well
-// fn madv<'a, F: FnOnce(KA) -> KA>(f: F, advs: &[&'a str], k: KA) -> KA
-//
-//    if advs.is_empty()
-//    {
-//        return f(k);
-//    }
-//
-//    let (adv, rest) = advs.split_at(0);
-//
-//    match adv
-//    {
-//        // todo: try to avoid recursion?
-//        &["/:"] => madv(eachr(f), rest, k),
-//        &[r"\:"] => madv(eachl(f), rest, k),
-//        &["/"] | &["\\"] | &["'"] => return KA::KE("type"),
-//        _ => return KA::KE("adv?"),
-//    }
-//
 
 fn madv<'a, F: Fn(KA) -> KA>(f: &F, advs: &[&'a str], k: KA) -> KA
 {
