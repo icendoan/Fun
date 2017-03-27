@@ -1,7 +1,6 @@
 // todos: advs, (), rewrite lexer (again!)
-
-#![feature(slice_patterns, advanced_slice_patterns, conservative_impl_trait, box_syntax, box_patterns)]
-#![allow(dead_code, unused_variables)]
+#![feature(slice_patterns, advanced_slice_patterns)]
+#![feature(conservative_impl_trait, box_syntax, box_patterns)]
 use std::collections::HashMap;
 use std::io;
 use std::rc::Rc;
@@ -42,6 +41,7 @@ enum KA
     KF(K<F>),
     KK(K<KA>),
     KE(&'static str),
+    KL(K<T>), // only allow pointfree chains in variables for now
     KZ,
 }
 impl<T: KT> K0<T>
@@ -490,201 +490,134 @@ fn fold<F: FnOnce(KA, KA) -> KA>(f: F) -> impl FnOnce(KA, KA) -> KA
 // verbs:+!*(/:)#,-(\:)/\@$=
 fn lex<'a>(s: &'a str) -> Vec<Tok<'a>>
 {
+
     #[derive(Copy,Clone,PartialEq,Eq,Debug)]
     enum LM
     {
-        V,
         N,
         A,
         U,
-    }
+    };
     struct L<'a>
     {
-        m: LM,
         s: &'a str,
-        i: S,
     }
     impl<'a> Iterator for L<'a>
     {
         type Item = Tok<'a>;
-
-
         fn next(&mut self) -> Option<Tok<'a>>
         {
-            let mut i = self.i;
-            let mut m = self.m;
-            while i < self.s.len()
+            let verb_str = "#_!+-*%$=,~^?:";
+            let mut iter = self.s.chars().enumerate().peekable();
+            let mut m = LM::U;
+            loop
             {
-                println!("[Mode: {:?}] Considering: {}", self.m, &self.s[..i]);
-                
-                match (m, self.s[..i].as_bytes())
+                match (m, iter.peek())
                 {
-                    // verbs
-                    (_, c) if b"+!*#,-@$=".contains(&c) =>
+                    // end of str
+                    (LM::N, None) =>
                     {
-                        self.m = LM::U;
-                        self.i = 1;
-                        let (t, r) = self.s.split_at(i);
-                        self.s = r;
-                        return Some(Tok::V(t))
+                        let token = self.s;
+                        self.s = "";
+                        return Some(Tok::N(token));
                     },
-                    // definite adverb
-                    (_, b"/:") | (_, b"\\:") | (_, b"'") =>
+                    (LM::A, None) =>
                     {
-                        self.m = LM::U;
-                        self.i = 1;
-                        let (t, r) = self.s.split_at(i);
-                        self.s = r;
-                        return Some(Tok::A(t))
+                        let token = self.s;
+                        self.s = "";
+                        return Some(Tok::A(token));
                     },
+                    (LM::U, None) => return None,
 
-                    // match single / or \
-                    (LM::A, [av, r..]) =>
+                    // whitespace
+                    (LM::N, Some(&(i, c))) if c.is_whitespace() =>
                     {
-                        assert!((av == b"/") || (av == b"\\"));
-                        self.i = 1;
-                        self.m = LM::U;
-                        let (t, r) = self.s.split_at(1);
-                        self.s = r;
-                        return Some(Tok::A(t))
+                        let _ = iter.next().unwrap();
+                        let (token, text) = self.s.split_at(i);
+                        self.s = text.trim();
+                        return Some(Tok::N(token));
                     },
-
-                    // possible adverb
-                    (_, b"/") | (_, b"\\") =>
+                    (LM::A, Some(&(i, c))) if c.is_whitespace() =>
                     {
-                        self.m=LM::A;
+                        let _ = iter.next().unwrap();
+                        let (token, text) = self.s.split_at(i);
+                        self.s = text.trim();
+                        return Some(Tok::A(token));
+                    },
+                    (LM::U, Some(&(i, c))) if c.is_whitespace() =>
+                    {
+                        let _ = iter.next().unwrap();
+                        self.s = &self.s[(i + 1)..];
                     },
 
                     // end of noun
-                    (LM::N, [ref n.., v]) if (b"+!*#,-@$=".contains(&v) || (v as char).is_whitespace()) && !n.is_empty() =>
+                    (LM::N, Some(&(i, c))) if verb_str.contains(c) =>
                     {
-                        self.i = 1;
-                        self.m = LM::U;
-                        let (t, r) = self.split_at(i);
-                        self.s = r;
-                        return Some(Tok::N(t))
+                        let (token, text) = self.s.split_at(i);
+
                     },
 
-                    //end of string
-                    (LM::N, c) if c == self.s =>
+                    // end of adv with suffix
+                    (LM::A, Some(&(_, ':'))) |
+                    (LM::A, Some(&(_, '\''))) =>
                     {
-                        self.i = 1;
-                        self.m = LM::U;
-                        let n = self.s;
-                        self.s = "";
-                        return Some(Tok::N(n))
+                        let (i, _) = iter.next().unwrap();
+                        let (token, text) = self.s.split_at(i);
+                        self.s = text;
+                        return Some(Tok::A(token));
                     },
 
-                    (LM::U, [c, rest..]) =>
+                    // end of adv without suffix
+                    (LM::A, Some(&(i, c))) =>
                     {
-                        match c as char
-                        {
-                            c if c.is_alphanumeric() => self.m = LM::N,
-                            c if "+!*#,-@$=".contains(c) => self.m = LM::V,
-                            c if c.is_whitespace() =>
-                            {
-                                // skip whitespace on token end
-                                let tr = self.s.trim();
-                                self.s = tr;
-                                i = 0;
-                            }
-                        }
+                        let (token, text) = self.s.split_at(i);
+                        self.s = text;
+                        return Some(Tok::A(token));
+                    },
+                    // continuation of noun
+                    (LM::N, Some(_)) =>
+                    {
+                        let _ = iter.next().unwrap();
                     },
 
-                    (_, []) => return None
+                    // mode selection
+                    // verbs are only 1 char
+                    (LM::U, Some(&(i, c))) if verb_str.contains(c) =>
+                    {
+                        let _ = iter.next().unwrap();
+                        let (token, text) = self.s.split_at(i + 1);
+                        self.s = text;
+                        return Some(Tok::V(token));
+                    },
+
+                    (LM::U, Some(&(i, c))) if "/\\'".contains(c) =>
+                    {
+                        m = LM::A;
+                        let _ = iter.next().unwrap();
+                    },
+                    (LM::U, Some(_)) =>
+                    {
+                        m = LM::N;
+                        let _ = iter.next().unwrap();
+                    },
 
                 }
-
-                i += 1;
             }
-
-            None
-        }
-
-        fn next(&mut self) -> Option<Tok<'a>>
-        {
-            let mut i = self.i;
-            while i < self.s.len()
-            {
-                println!("{}", &self.s[..i]);
-                match self.s[..i].as_bytes()
-                {
-                    b"/:" | b"\\:" | b"'" =>
-                    {
-                        self.i = 1;
-                        let (h, t) = self.s.split_at(i);
-                        self.s = t;
-                        return Some(Tok::A(h));
-                    },
-
-                    b"/" | b"\\" if self.s.len() == 1 =>
-                    {
-                        self.i = 1;
-                        let(h,t)=self.s.split_at(i);
-                        self.s=t;
-                        return Some(Tok::A(h))
-                    },
-
-                    b"/" | b"\\" =>
-                    {
-                        i += 1;
-                        continue
-                    }
-
-                    &[47u8, x] | &[92, x] if x != (':' as u8) => // 47 = /,92 = \
-                    {
-                        self.i = 1;
-                        let (h, t) = self.s.split_at(i-1);
-                        self.s=t;
-                        return Some(Tok::A(h))
-                    },
-
-                    &[x] if b"+!*#,-@$=".contains(&x) =>
-                    {
-                        self.i = 1;
-                        let (h, t) = self.s.split_at(i);
-                        self.s = t;
-                        return Some(Tok::V(h))
-                    },
-
-                    &[ref cs.., x] if b"+!*#,-@$=".contains(&x) =>
-                    {
-                        self.i = 1;
-                        let (h, t) = self.s.split_at(i-1);
-                        self.s = t;
-                        return Some(Tok::N(h))
-                    },
-
-                    //&[ref cs..] if cs.len() == self.s.len() =>
-                    //{
-                    //    self.i = 1;
-                    //    let (h, t) = self.s.split_at(i);
-                    //    self.s = t;
-                    //    return Some(Tok::N(h))
-                    //},
-
-                    &[] => return None,
-                    _ => (),
-                }
-                i += 1;
-            }
-
-            None
         }
     }
 
-    (L { m: LM::U, s: s, i: 1 }).collect()
+    (L { s: s.trim() }).collect()
 }
 
 #[derive(Clone,PartialEq,PartialOrd,Debug)]
-enum T<'a>
+enum T
 {
-    N(&'a str),
-    V(&'a str, Vec<&'a str>),
+    N(String, Vec<String>),
+    V(String, Vec<String>),
     K(KA),
 }
 // just coalesces adverbs
-fn pa<'a>(s: &'a str) -> Vec<T<'a>>
+fn pa<'a>(s: &'a str) -> Vec<T>
 {
     let mut adv = Vec::new();
     let mut ter = Vec::new();
@@ -693,14 +626,19 @@ fn pa<'a>(s: &'a str) -> Vec<T<'a>>
     {
         match t
         {
-            Tok::N(n) => ter.push(T::N(n)),
+            Tok::N(n) =>
+            {
+                adv.reverse();
+                ter.push(T::N(n.to_owned(), adv));
+                adv = Vec::new();
+            },
             Tok::V(v) =>
             {
                 adv.reverse();
-                ter.push(T::V(v, adv));
+                ter.push(T::V(v.to_owned(), adv));
                 adv = Vec::new();
             },
-            Tok::A(a) => adv.push(a),
+            Tok::A(a) => adv.push(a.to_owned()),
         }
     }
 
@@ -708,7 +646,7 @@ fn pa<'a>(s: &'a str) -> Vec<T<'a>>
     ter
 }
 
-fn pr(k: KA)
+fn pr(k: T)
 {
     println!("{:?}", k)
 }
@@ -718,7 +656,7 @@ fn ca(s: &str, p: S) -> char
     s.as_bytes()[p] as char
 }
 
-fn nn(n: &str, v: &HashMap<String, KA>) -> KA
+fn nn(n: &str, a: Vec<&str>, g: &HashMap<String, KA>, l: &HashMap<String, KA>) -> KA
 {
     if n.is_empty()
     {
@@ -745,11 +683,7 @@ fn nn(n: &str, v: &HashMap<String, KA>) -> KA
     }
     else
     {
-        match v.get(n)
-        {
-            Some(k) => k.clone(),
-            None => KA::KE("var?"),
-        }
+        l.get(n).ok_or(g.get(n)).map(|x| x.clone()).unwrap_or(KA::KE("var?"))
     }
 }
 
@@ -793,14 +727,29 @@ fn madv<'a, F: Fn(KA) -> KA>(f: &F, advs: &[&'a str], k: KA) -> KA
 {
     match advs
     {
-        &["'", ref advs..] => match k
+        &["'", ref advs..] =>
         {
-            KA::KK(ks) => rz(KA::KK(wr(ks.i().map(|k| madv(f, advs, k.clone())).collect()))),
-            KA::KI(ki) => rz(KA::KK(wr(ki.i().map(|i| madv(f, advs, f(KA::KI(mk(0, *i))))).collect()))),
-            KA::KC(kc) => rz(KA::KK(wr(kc.i().map(|i| madv(f, advs, f(KA::KC(mk(0, *i))))).collect()))),
-            KA::KF(kf) => rz(KA::KK(wr(kf.i().map(|i| madv(f, advs, f(KA::KF(mk(0, *i))))).collect()))),
-            KA::KB(kb) => rz(KA::KK(wr(kb.i().map(|i| madv(f, advs, f(KA::KB(mk(0, *i))))).collect()))),
-            _ => k, // KE,KZ
+            match k
+            {
+                KA::KK(ks) => rz(KA::KK(wr(ks.i().map(|k| madv(f, advs, k.clone())).collect()))),
+                KA::KI(ki) =>
+                {
+                    rz(KA::KK(wr(ki.i().map(|i| madv(f, advs, f(KA::KI(mk(0, *i))))).collect())))
+                },
+                KA::KC(kc) =>
+                {
+                    rz(KA::KK(wr(kc.i().map(|i| madv(f, advs, f(KA::KC(mk(0, *i))))).collect())))
+                },
+                KA::KF(kf) =>
+                {
+                    rz(KA::KK(wr(kf.i().map(|i| madv(f, advs, f(KA::KF(mk(0, *i))))).collect())))
+                },
+                KA::KB(kb) =>
+                {
+                    rz(KA::KK(wr(kb.i().map(|i| madv(f, advs, f(KA::KB(mk(0, *i))))).collect())))
+                },
+                _ => k, // KE,KZ
+            }
         },
         &[] => f(k),
         _ => KA::KE("adv?"),
@@ -840,46 +789,31 @@ fn rz(k: KA) -> KA
                         v.extend(k0.i().cloned());
                         ST::K(v)
                     },
-                    (KA::KK(k0), ST::Z) =>
-                    {
-                        ST::K(k0.i().cloned().collect())
-                    },
+                    (KA::KK(k0), ST::Z) => ST::K(k0.i().cloned().collect()),
                     (KA::KB(k0), ST::B(mut v)) =>
                     {
                         v.extend(k0.i().cloned());
                         ST::B(v)
                     },
-                    (KA::KB(k0), ST::Z) =>
-                    {
-                        ST::B(k0.i().cloned().collect())
-                    },
+                    (KA::KB(k0), ST::Z) => ST::B(k0.i().cloned().collect()),
                     (KA::KC(k0), ST::C(mut v)) =>
                     {
                         v.extend(k0.i().cloned());
                         ST::C(v)
                     },
-                    (KA::KC(k0), ST::Z) =>
-                    {
-                        ST::C(k0.i().cloned().collect())
-                    },
+                    (KA::KC(k0), ST::Z) => ST::C(k0.i().cloned().collect()),
                     (KA::KF(k0), ST::F(mut v)) =>
                     {
                         v.extend(k0.i().cloned());
                         ST::F(v)
                     },
-                    (KA::KF(k0), ST::Z) =>
-                    {
-                        ST::F(k0.i().cloned().collect())
-                    },
+                    (KA::KF(k0), ST::Z) => ST::F(k0.i().cloned().collect()),
                     (KA::KI(k0), ST::I(mut v)) =>
                     {
                         v.extend(k0.i().cloned());
                         ST::I(v)
                     },
-                    (KA::KI(k0), ST::Z) =>
-                    {
-                        ST::I(k0.i().cloned().collect())
-                    },
+                    (KA::KI(k0), ST::Z) => ST::I(k0.i().cloned().collect()),
                     _ => return k,
                 }
             }
@@ -898,102 +832,129 @@ fn rz(k: KA) -> KA
     }
 }
 
-fn ev(s: &str, v: &mut HashMap<String, KA>)
+fn ev(mut ter: Vec<T>, g: &mut HashMap<String, KA>, v: &mut HashMap<String, KA>)
 {
-    let mut ter = pa(s);
-    println!("{:?}", &ter);
     loop
     {
-        match (ter.pop(), ter.pop(), ter.pop())
+        let (t2, t1, t0) = (ter.pop(), ter.pop(), ter.pop());
+        match (t0, t1, t2)
         {
-            // empty stack!
-            (None, _, _) => return pr(KA::KE("empty?")),
+            (None, None, t2) => return pr(t2),
+            (_, _, T::K(KA::KE(e))) => return pr(T::K(KA::KE(e))),
 
-            // stop on err
-            (Some(T::K(KA::KE(e))), _, _) => return pr(KA::KE(e)),
-
-            // last res
-            (Some(T::K(k)), None, _) => return pr(k),
-            (Some(T::N(n)), None, _) => return pr(nn(n, v)),
-            (Some(T::V(vb, a)), None, _) => return println!("{}{}", vb, a.join("")),
-
-            // set
-            (Some(T::N(n)), Some(T::V(":", _)), Some(T::K(k))) =>
+            (T::V(":", a0), T::V(":", a1), T::K(ka)) =>
             {
-                v.insert(n.to_owned(), k.clone());
-                ter.push(T::K(k))
-            },
-
-            // monad
-            // forced monads
-            (Some(T::K(k2)), Some(T::K(k1)), None) => ter.push(T::K(dat(k1, k2))),
-            (Some(T::N(n2)), Some(T::N(n1)), None) => ter.push(T::K(dat(nn(n1, v), nn(n2, v)))),
-            // possibly dyads based on adverbs
-            // if a contains / or \ then it is a dyad in a monadic position
-            // and can be called with KV
-            (Some(T::K(k2)), Some(T::V(vb, a)), None) =>
-            {
-                if a.contains(&"\\") || a.contains(&"/")
+                if a0.is_empty() && a1.is_empty()
                 {
-                    ter.push(T::K(dya(vb, &a[..], k2, KA::KZ)))
+                    ter.push(T::V("::", Vec::new()));
+                    ter.push(T::K(ka));
                 }
                 else
                 {
-                    ter.push(T::K(mon(vb, &a[..], k2)))
-                }
-            },
-            (Some(T::N(n2)), Some(T::V(vb, a)), None) =>
-            {
-                if a.contains(&"\\") || a.contains(&"/")
-                {
-                    ter.push(T::K(dya(vb, &a[..], nn(n2, v), KA::KZ)))
-                }
-                else
-                {
-                    ter.push(T::K(mon(vb, &a[..], nn(n2, v))))
-                }
-            },
-            (Some(T::N(n2)), Some(T::V(v1, a)), Some(T::V(v0, a0))) =>
-            {
-                ter.push(T::V(v0, a0));
-                if a.contains(&"\\") || a.contains(&"/")
-                {
-                    ter.push(T::K(dya(v1, &a[..], nn(n2, v), KA::KZ)))
-                }
-                else
-                {
-                    ter.push(T::K(mon(v1, &a[..], nn(n2, v))))
-                }
-            },
-            (Some(T::K(k2)), Some(T::V(v1, a)), Some(T::V(v0, a0))) =>
-            {
-                ter.push(T::V(v0, a0));
-                if a.contains(&"\\") || a.contains(&"/")
-                {
-                    ter.push(T::K(dya(v1, &a[..], k2, KA::KZ)))
-                }
-                else
-                {
-                    ter.push(T::K(mon(v1, &a[..], k2)))
+                    return pr(T::K(KA::KE("adv!")));
                 }
             },
 
-            // dyad
-            (Some(T::K(k2)), Some(T::V(vb, a)), Some(T::K(k0))) => ter.push(T::K(dya(vb, &a[..], k0, k2))),
-            (Some(T::N(n2)), Some(T::V(vb, a)), Some(T::K(k0))) => ter.push(T::K(dya(vb, &a[..], nn(n2, v), k0))),
-            (Some(T::N(n2)), Some(T::V(vb, a)), Some(T::N(n0))) => ter.push(T::K(dya(vb, &a[..], nn(n2, v), nn(n0, v)))),
+            (T::N(n0, a0), T::V(":", a1), T::K(ka)) =>
+            {
+                if a0.is_empty() && a1.is_empty()
+                {
+                    v.insert(n0, ka.clone());
+                    ter.push(T::K(ka))
+                }
+                else
+                {
+                    return pr(T::K(KA::KE("adv!")));
+                }
+            },
 
-            // errs
-            (Some(T::V(_, _)), Some(T::V(_, _)), _) => return pr(KA::KE("type")),
+            (T::N(n0, a0), T::V("::", a1), T::K(ka)) =>
+            {
+                if a0.is_empty() && a1.is_empty()
+                {
+                    g.insert(n0, ka.clone());
+                    ter.push(T::K(ka))
+                }
+                else
+                {
+                    return pr(T::K(KA::KE("adv!")));
+                }
+            },
 
-            _ => return pr(KA::KE("ev nyi")),
+            (t0, T::V(":", []), T::N(n2, a2)) =>
+            {},
+
+            (t0, T::V("::", []), T::N(n2, a2)) =>
+            {},
+
+            (t0, T::V(v1, a1), T::K(KA::KL(vs))) =>
+            {
+                // merge verb chains
+                ter.push(t0);
+                vs.push(T::V(v1, a1));
+                ter.push(T::K(KA::KL(vs)));
+            },
+
+            (T::N(n0, a0), T::V(v1, a1), T::N(n2, a2)) =>
+            {
+                ter.push(T::K(dya(v1,
+                                  a1,
+                                  nn(n0, a0, g, v),
+                                  nn(n2, a2, g, v))));
+            },
+
+            // know that ka is not KL - so apply dyadically
+            (T::N(n0, a0), T::V(v1, a1), T::K(ka)) =>
+            {
+                ter.push(T::K(dya(v1, a1, nn(n0, a0, g, v), ka)));
+            },
+
+            (t0, T::V(v1, a1), T::K(ka)) =>
+            {
+                // default x v k ~> x mon(v,k)
+                ter.push(t0);
+                ter.push(T::K(mon(v1, a1, ka)));
+            },
+
+            (t0, T::V(v1, a1), T::N(n2, a2)) =>
+            {
+                // dyad can look monad if it is a scan/fold
+                if a1.contains("\\") || a1.contains("/")
+                {
+                    ter.push(t0);
+                    ter.push(dya(v1, a1, KA::KZ, nn(n2, a2, g, v)));
+                }
+                else
+                {
+                    // default x v n ~> x mon(v, nn(n))
+                    ter.push(t0);
+                    ter.push(mon(v1, a1, nn(n2, a2, g, v)));
+                }
+            },
+
+            (t0, t1, T::V(v2, a2)) =>
+            {
+                // if the end of the line is a verb, build a verb chain
+                ter.push(t0);
+                ter.push(t1);
+                ter.push(KA::KL(mk(1, T::V(v2, a2))));
+            },
+
+            (t0, t1, t2) =>
+            {
+                pr(t0);
+                pr(t1);
+                pr(t2);
+                return;
+            },
         }
     }
 }
 
 fn main()
 {
-    let mut vars: HashMap<String, KA> = HashMap::new();
+    let mut locs: HashMap<String, KA> = HashMap::new();
+    let mut glob: HashMap<String, KA> = HashMap::new();
     let stdin = io::stdin();
     let mut s = String::new();
     loop
@@ -1006,11 +967,14 @@ fn main()
             {
                 match s.as_str()
                 {
-                    r"\\" => return,
+                    "\\\\\n" => return,
                     _ => (),
                 }
 
-                ev(&s, &mut vars)
+                locs.clear();
+                let mut ter = pa(s);
+                println!("{:?}", &ter);
+                ev(ter, &mut glob, &mut locs)
             },
             _ => return,
         }
