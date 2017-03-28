@@ -457,6 +457,7 @@ fn mdol(r: KA) -> KA
 }
 // if/cast/dot/mmul/
 // (c:bool atom)$a,b->a if c=t, b if c=f
+// (a:bool)$b -> if a then b else top_of_stack
 // (t:int atom)$(x:s) -> x:tassoc t
 // (t:int list)$(x:s) -> t$'x
 // (a:float matrix l n)$(b: float matrix n r)->float matrix l r
@@ -584,7 +585,7 @@ fn lex<'a>(s: &'a str) -> Vec<Tok<'a>>
                     },
 
                     // end of adv without suffix
-                    (LM::A, Some(&(i, c))) =>
+                    (LM::A, Some(&(i, _))) =>
                     {
                         let (token, text) = self.s.split_at(i);
                         self.s = text;
@@ -598,7 +599,7 @@ fn lex<'a>(s: &'a str) -> Vec<Tok<'a>>
 
                     // mode selection
                     // verbs are only 1 char except for ::
-                    (LM::U, Some(&(i, ':'))) =>
+                    (LM::U, Some(&(_, ':'))) =>
                     {
                         m = LM::V;
                         let _ = iter.next().unwrap();
@@ -612,7 +613,7 @@ fn lex<'a>(s: &'a str) -> Vec<Tok<'a>>
                         return Some(Tok::V(token));
                     },
 
-                    (LM::V, Some(&(i, c))) =>
+                    (LM::V, Some(&(i, _))) =>
                     {
                         let (token, text) = self.s.split_at(i);
                         self.s = text;
@@ -627,7 +628,7 @@ fn lex<'a>(s: &'a str) -> Vec<Tok<'a>>
                         return Some(Tok::V(token));
                     },
 
-                    (LM::U, Some(&(i, c))) if "/\\'".contains(c) =>
+                    (LM::U, Some(&(_, c))) if "/\\'".contains(c) =>
                     {
                         m = LM::A;
                         let _ = iter.next().unwrap();
@@ -720,25 +721,48 @@ fn nn(n: &str, a: &[&str], g: &HashMap<String, KA>, l: &HashMap<String, KA>) -> 
     }
     else
     {
-        l.get(n).ok_or(g.get(n)).map(|x| x.clone()).unwrap_or(KA::KE("var?"))
+        l.get(n).or(g.get(n)).map(|x| x.clone()).unwrap_or(KA::KE("var?"))
     }
 }
 
-// verbs:+!*(/:)#,-(\:)/\@$=
+// verbs #_!+-*%$=,~^?:
+// adverbs /\/:\:'':
 fn mon<'a>(verb: &'a str, advs: &[&'a str], r: KA) -> KA
 {
-    match verb
+    // sometimes a monadic positioned verb can be a dyad, if it
+    // has /, /:, \, \: as an adverb
+
+    if advs.contains(&"/") || advs.contains(&"\\")
     {
-        "+" => madv(&mplus, advs, r),
-        "!" => madv(&mexcl, advs, r),
-        "*" => madv(&mstar, advs, r),
-        "#" => madv(&mhash, advs, r),
-        "," => madv(&mcomm, advs, r),
-        "@" => madv(&mat, advs, r),
-        "$" => madv(&mdol, advs, r),
-        "=" => madv(&meq, advs, r),
-        "-" => madv(&mmin, advs, r),
-        _ => KA::KE("nyi"),
+        match verb
+        {
+            "+" => dadv(&dplus, advs, KA::KZ, r),
+            "!" => dadv(&dexcl, advs, KA::KZ, r),
+            "*" => dadv(&dstar, advs, KA::KZ, r),
+            "#" => dadv(&dhash, advs, KA::KZ, r),
+            "," => dadv(&dcomm, advs, KA::KZ, r),
+            "@" => dadv(&dat, advs, KA::KZ, r),
+            "$" => dadv(&ddol, advs, KA::KZ, r),
+            "=" => dadv(&deq, advs, KA::KZ, r),
+            "-" => dadv(&dmin, advs, KA::KZ, r),
+            _ => KA::KE("nyi"),
+        }
+    }
+    else
+    {
+        match verb
+        {
+            "+" => madv(&mplus, advs, r),
+            "!" => madv(&mexcl, advs, r),
+            "*" => madv(&mstar, advs, r),
+            "#" => madv(&mhash, advs, r),
+            "," => madv(&mcomm, advs, r),
+            "@" => madv(&mat, advs, r),
+            "$" => madv(&mdol, advs, r),
+            "=" => madv(&meq, advs, r),
+            "-" => madv(&mmin, advs, r),
+            _ => KA::KE("nyi"),
+        }
     }
 }
 
@@ -796,7 +820,11 @@ fn madv<'a, F: Fn(KA) -> KA>(f: &F, advs: &[&'a str], k: KA) -> KA
 // if / or \ are at the top of adv, then ignore l, and just f(/|\)r
 fn dadv<'a, F: Fn(KA, KA) -> KA>(f: &F, advs: &[&'a str], l: KA, r: KA) -> KA
 {
-    KA::KE("dadv nyi")
+    match advs
+    {
+        &[] => f(l, r),
+        _ => KA::KE("dadv nyi"),
+    }
 }
 
 fn rz(k: KA) -> KA
@@ -891,8 +919,7 @@ fn ev(mut ter: Vec<T>, g: &mut HashMap<String, KA>, v: &mut HashMap<String, KA>)
         match (t0, t1, t2)
         {
             (None, None, None) => return, // ZZZ
-            (t0, t1, Some(T::K(KA::KE(e)))) => return pr(T::K(KA::KE(e))), // xxe
-            (None, None, Some(t2)) => return pr(t2), // ZZx
+            (_, _, Some(T::K(KA::KE(e)))) => return pr(T::K(KA::KE(e))), // xxe
             (t0, Some(T::V(v1, a1)), Some(T::K(k2))) => // xvk
             {
                 match t0
@@ -919,6 +946,7 @@ fn ev(mut ter: Vec<T>, g: &mut HashMap<String, KA>, v: &mut HashMap<String, KA>)
                         {
                             if a1.is_empty() && a0.is_empty()
                             {
+                                println!("L {:?} := {:?}", n0, k2);
                                 v.insert(n0, k2.clone());
                                 ter.push(T::K(k2));
                             }
@@ -931,6 +959,7 @@ fn ev(mut ter: Vec<T>, g: &mut HashMap<String, KA>, v: &mut HashMap<String, KA>)
                         {
                             if a1.is_empty() && a0.is_empty()
                             {
+                                println!("G {:?} := {:?}", n0, k2);
                                 g.insert(n0, k2.clone());
                                 ter.push(T::K(k2));
                             }
@@ -1053,6 +1082,8 @@ fn ev(mut ter: Vec<T>, g: &mut HashMap<String, KA>, v: &mut HashMap<String, KA>)
                 }
             },
 
+            (None, None, Some(t2)) => return pr(t2), // ZZx
+
             (t0, t1, t2) => // xxx
             {
                 println!("DEBUG:\n t0: {:?}\nt1: {:?}\nt1: {:?}", t0, t1, t2);
@@ -1082,8 +1113,9 @@ fn main()
                 }
 
                 locs.clear();
-                let mut ter = pa(&s);
+                let ter = pa(&s);
                 println!("{:?}", &ter);
+                println!("G: {:?}", glob);
                 ev(ter, &mut glob, &mut locs)
             },
             _ => return,
