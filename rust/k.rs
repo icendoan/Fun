@@ -1,9 +1,11 @@
-// todos: advs, add C (control) token type, dadv, see if eval orders not around
-// yet
-#![feature(slice_patterns, advanced_slice_patterns)]
+// todos: advs, add C (control) token type, verbs
+#![feature(slice_patterns, advanced_slice_patterns, custom_attribute)]
 #![feature(conservative_impl_trait, box_syntax, box_patterns)]
+#![allow(unused_variables, dead_code, unused_attributes)]
+#![deny(unreachable_patterns)]
+#![attribute(rustfmt)]
 use std::collections::HashMap;
-use std::io;
+use std::io::{self, Write};
 use std::rc::Rc;
 use std::str::FromStr;
 type I = i64;
@@ -94,7 +96,7 @@ impl<'a, T: 'a + KT> Iterator for KIt<'a, T>
 
             K0::L(ref v) =>
             {
-                if *ix > v.len()
+                if *ix >= v.len()
                 {
                     None
                 }
@@ -104,6 +106,28 @@ impl<'a, T: 'a + KT> Iterator for KIt<'a, T>
                     Some(&v[*ix - 1])
                 }
             },
+        }
+    }
+}
+
+struct KAIt<'a>(&'a KA, S);
+impl<'a> Iterator for KAIt<'a>
+{
+    type Item = KA;
+    #[rustfmt_skip]
+    fn next(&mut self) -> Option<KA>
+    {
+        let KAIt(ka, ref mut ix) = *self;
+        let x = *ix;
+        match *ka
+        {
+            KA::KB(ref k0) => {*ix += 1; k0.i().nth(x).map(|x| KA::KB(mk(0, x.clone())))},
+            KA::KC(ref k0) => {*ix += 1; k0.i().nth(x).map(|x| KA::KC(mk(0, x.clone())))},
+            KA::KK(ref k0) => {*ix += 1; k0.i().nth(x).map(|x| KA::KK(mk(0, x.clone())))},
+            KA::KF(ref k0) => {*ix += 1; k0.i().nth(x).map(|x| KA::KF(mk(0, x.clone())))},
+            KA::KI(ref k0) => {*ix += 1; k0.i().nth(x).map(|x| KA::KI(mk(0, x.clone())))},
+            KA::KL(ref k0) => {*ix += 1; k0.i().nth(x).map(|x| KA::KL(mk(0, x.clone())))},
+            _ => None,
         }
     }
 }
@@ -139,10 +163,23 @@ impl KA
             KA::KZ => false,
         }
     }
+
+    fn i<'a>(&'a self) -> KAIt<'a>
+    {
+        KAIt(self, 0)
+    }
 }
 fn wr<T: KT>(v: Vec<T>) -> K<T>
 {
-    Rc::new(K0::L(v))
+    if v.len() == 1
+    {
+        let x: T = v[0].clone();
+        mk(0, x)
+    }
+    else
+    {
+        Rc::new(K0::L(v))
+    }
 }
 fn mk<T: KT>(n: S, d: T) -> K<T>
 {
@@ -151,16 +188,25 @@ fn mk<T: KT>(n: S, d: T) -> K<T>
 // add
 fn dplus(l: KA, r: KA) -> KA
 {
+    println!("dplus: l: {:?}, r: {:?}", l, r);
     match (l, r)
     {
         (KA::KI(li), KA::KI(ri)) =>
         {
             if li.len() == ri.len()
             {
-                KA::KI(wr(li.i()
+                rz(KA::KI(wr(li.i()
                     .zip(ri.i())
                     .map(|(x, y)| x + y)
-                    .collect()))
+                    .collect())))
+            }
+            else if li.len() == 0
+            {
+                rz(eachr(&dplus, KA::KI(li), KA::KI(ri)))
+            }
+            else if ri.len() == 0
+            {
+                rz(eachl(&dplus, KA::KI(li), KA::KI(ri)))
             }
             else
             {
@@ -171,17 +217,17 @@ fn dplus(l: KA, r: KA) -> KA
         {
             if lf.len() == rf.len()
             {
-                KA::KF(wr(lf.i()
+                rz(KA::KF(wr(lf.i()
                     .zip(rf.i())
                     .map(|(x, y)| x + y)
-                    .collect()))
+                    .collect())))
             }
             else
             {
                 KA::KE("rank")
             }
         },
-        (KA::KK(lk), KA::KK(rk)) => eachb(dplus)(KA::KK(lk), KA::KK(rk)),
+        (KA::KK(lk), KA::KK(rk)) => eachb(&dplus, KA::KK(lk), KA::KK(rk)),
         _ => KA::KE("type"),
     }
 }
@@ -224,7 +270,7 @@ fn dmin(l: KA, r: KA) -> KA
                 KA::KE("rank")
             }
         },
-        (KA::KK(lk), KA::KK(rk)) => eachb(dplus)(KA::KK(lk), KA::KK(rk)),
+        (KA::KK(lk), KA::KK(rk)) => eachb(&dplus, KA::KK(lk), KA::KK(rk)),
         _ => KA::KE("type"),
     }
 }
@@ -235,7 +281,7 @@ fn mmin(r: KA) -> KA
     {
         &KA::KI(_) => dstar(KA::KI(mk(0, -1)), r),
         &KA::KF(_) => dstar(KA::KF(mk(0, -1f64)), r),
-        &KA::KK(_) => eachr(mmin)(r),
+        &KA::KK(_) => each(&mmin, r),
         _ => KA::KE("type"),
     }
 }
@@ -362,7 +408,7 @@ fn dstar(l: KA, r: KA) -> KA
                 KA::KE("rank")
             }
         },
-        (KA::KK(lk), KA::KK(rk)) => eachb(dplus)(KA::KK(lk), KA::KK(rk)),
+        (KA::KK(lk), KA::KK(rk)) => eachb(&dplus, KA::KK(lk), KA::KK(rk)),
         _ => KA::KE("type"),
     }
 
@@ -391,7 +437,7 @@ fn mexcl(r: KA) -> KA
     }
     else
     {
-        eachr(mexcl)(r)
+        each(&mexcl, r)
     }
 }
 // map
@@ -468,33 +514,29 @@ fn ddol(l: KA, r: KA) -> KA
 }
 
 
-fn eachl<F: FnOnce(KA) -> KA>(f: F) -> impl FnOnce(KA) -> KA
+fn eachb<F: Fn(KA, KA) -> KA>(f: &F, l: KA, r: KA) -> KA
 {
-    move |x| f(x)
+    rz(KA::KK(wr(l.i().zip(r.i()).map(|(x, y)| f(x.clone(), y.clone())).collect())))
 }
 
-fn eachr<F: FnOnce(KA) -> KA>(f: F) -> impl FnOnce(KA) -> KA
+fn each<F: Fn(KA) -> KA>(f: &F, k: KA) -> KA
 {
-    move |x| f(x)
+    rz(KA::KK(wr(k.i().map(|x| f(x.clone())).collect())))
 }
 
-fn eachb<F: FnOnce(KA, KA) -> KA>(f: F) -> impl FnOnce(KA, KA) -> KA
+fn eachr<F: Fn(KA, KA) -> KA>(f: &F, l: KA, r: KA) -> KA
 {
-    move |x, y| f(x, y)
+    (KA::KK(wr(r.i().map(|x| f(l.clone(), x.clone())).collect())))
+}
+fn eachl<F: Fn(KA, KA) -> KA>(f: &F, l: KA, r: KA) -> KA
+{
+
+    (KA::KK(wr(l.i().map(|x| f(x.clone(), r.clone())).collect())))
 }
 
-fn scan<F: FnOnce(KA, KA) -> KA>(f: F) -> impl FnOnce(KA, KA) -> KA
-{
-    move |x, y| f(x, y)
-}
-
-fn fold<F: FnOnce(KA, KA) -> KA>(f: F) -> impl FnOnce(KA, KA) -> KA
-{
-    move |x, y| f(x, y)
-}
 
 // verbs:+!*(/:)#,-(\:)/\@$=
-fn lex<'a>(s: &'a str) -> Vec<Tok<'a>>
+fn lex<'a>(s: &'a str) -> Vec<Tok<'a>> // lexer
 {
 
     #[derive(Copy,Clone,PartialEq,Eq,Debug)]
@@ -508,6 +550,7 @@ fn lex<'a>(s: &'a str) -> Vec<Tok<'a>>
     struct L<'a>
     {
         s: &'a str,
+        m: LM,
     }
     impl<'a> Iterator for L<'a>
     {
@@ -516,7 +559,7 @@ fn lex<'a>(s: &'a str) -> Vec<Tok<'a>>
         {
             let verb_str = "#_!+-*%$=,~^?:";
             let mut iter = self.s.chars().enumerate().peekable();
-            let mut m = LM::U;
+            let mut m = self.m;
             loop
             {
                 println!("Considering {:?}: {:?}", m, iter.peek());
@@ -527,12 +570,14 @@ fn lex<'a>(s: &'a str) -> Vec<Tok<'a>>
                     {
                         let token = self.s;
                         self.s = "";
+                        self.m = LM::U;
                         return Some(Tok::N(token));
                     },
                     (LM::A, None) =>
                     {
                         let token = self.s;
                         self.s = "";
+                        self.m = LM::U;
                         return Some(Tok::A(token));
                     },
 
@@ -540,6 +585,7 @@ fn lex<'a>(s: &'a str) -> Vec<Tok<'a>>
                     {
                         let token = self.s;
                         self.s = "";
+                        self.m = LM::U;
                         return Some(Tok::V(token));
                     },
 
@@ -551,6 +597,7 @@ fn lex<'a>(s: &'a str) -> Vec<Tok<'a>>
                         let _ = iter.next().unwrap();
                         let (token, text) = self.s.split_at(i);
                         self.s = text.trim();
+                        self.m = LM::U;
                         return Some(Tok::N(token));
                     },
                     (LM::A, Some(&(i, c))) if c.is_whitespace() =>
@@ -558,6 +605,7 @@ fn lex<'a>(s: &'a str) -> Vec<Tok<'a>>
                         let _ = iter.next().unwrap();
                         let (token, text) = self.s.split_at(i);
                         self.s = text.trim();
+                        self.m = LM::U;
                         return Some(Tok::A(token));
                     },
                     (LM::U, Some(&(i, c))) if c.is_whitespace() =>
@@ -571,16 +619,27 @@ fn lex<'a>(s: &'a str) -> Vec<Tok<'a>>
                     {
                         let (token, text) = self.s.split_at(i);
                         self.s = text;
+                        self.m = LM::U;
                         return Some(Tok::N(token));
                     },
 
-                    // end of adv with suffix
-                    (LM::A, Some(&(_, ':'))) |
+                    // start of adv
+                    (LM::A, Some(&(_, '/'))) |
+                    (LM::A, Some(&(_, '\\'))) |
                     (LM::A, Some(&(_, '\''))) =>
+                    {
+                        let _ = iter.next().unwrap();
+                    },
+
+                    // end of adv with suffix
+                    // ' is also a suffix, but is caught via other rules
+                    // as it can be a distinct token
+                    (LM::A, Some(&(_, ':'))) =>
                     {
                         let (i, _) = iter.next().unwrap();
                         let (token, text) = self.s.split_at(i + 1);
                         self.s = text;
+                        self.m = LM::U;
                         return Some(Tok::A(token));
                     },
 
@@ -589,7 +648,12 @@ fn lex<'a>(s: &'a str) -> Vec<Tok<'a>>
                     {
                         let (token, text) = self.s.split_at(i);
                         self.s = text;
-                        return Some(Tok::A(token));
+                        self.m = LM::U;
+                        m = LM::U;
+                        if !token.is_empty()
+                        {
+                            return Some(Tok::A(token));
+                        }
                     },
                     // continuation of noun
                     (LM::N, Some(_)) =>
@@ -605,11 +669,13 @@ fn lex<'a>(s: &'a str) -> Vec<Tok<'a>>
                         let _ = iter.next().unwrap();
                     },
 
+                    // pick up ::
                     (LM::V, Some(&(i, ':'))) =>
                     {
                         let _ = iter.next().unwrap();
                         let (token, text) = self.s.split_at(i + 1);
                         self.s = text;
+                        self.m = LM::A;
                         return Some(Tok::V(token));
                     },
 
@@ -617,6 +683,7 @@ fn lex<'a>(s: &'a str) -> Vec<Tok<'a>>
                     {
                         let (token, text) = self.s.split_at(i);
                         self.s = text;
+                        self.m = LM::A;
                         return Some(Tok::V(token));
                     },
 
@@ -625,6 +692,7 @@ fn lex<'a>(s: &'a str) -> Vec<Tok<'a>>
                         let _ = iter.next().unwrap();
                         let (token, text) = self.s.split_at(i + 1);
                         self.s = text;
+                        self.m = LM::A;
                         return Some(Tok::V(token));
                     },
 
@@ -644,7 +712,11 @@ fn lex<'a>(s: &'a str) -> Vec<Tok<'a>>
         }
     }
 
-    (L { s: s.trim() }).collect()
+    (L {
+            s: s.trim(),
+            m: LM::U,
+        })
+        .collect()
 }
 
 #[derive(Clone,PartialEq,PartialOrd,Debug)]
@@ -719,6 +791,10 @@ fn nn(n: &str, a: &[&str], g: &HashMap<String, KA>, l: &HashMap<String, KA>) -> 
             }
         }
     }
+    else if (ca(n, 0) == '"') && (ca(n, n.len() - 1) == '"')
+    {
+        KA::KC(wr((&n[1..n.len() - 1]).chars().collect()))
+    }
     else
     {
         l.get(n).or(g.get(n)).map(|x| x.clone()).unwrap_or(KA::KE("var?"))
@@ -768,18 +844,37 @@ fn mon<'a>(verb: &'a str, advs: &[&'a str], r: KA) -> KA
 
 fn dya<'a>(verb: &'a str, advs: &[&'a str], l: KA, r: KA) -> KA
 {
-    match verb
+    if advs.contains(&":")
     {
-        "+" => dadv(&dplus, advs, l, r),
-        "!" => dadv(&dexcl, advs, l, r),
-        "*" => dadv(&dstar, advs, l, r),
-        "#" => dadv(&dhash, advs, l, r),
-        "," => dadv(&dcomm, advs, l, r),
-        "@" => dadv(&dat, advs, l, r),
-        "$" => dadv(&ddol, advs, l, r),
-        "=" => dadv(&deq, advs, l, r),
-        "-" => dadv(&dmin, advs, l, r),
-        _ => KA::KE("nyi"),
+        match verb
+        {
+            "+" => madv(&mplus, advs, r),
+            "!" => madv(&mexcl, advs, r),
+            "*" => madv(&mstar, advs, r),
+            "#" => madv(&mhash, advs, r),
+            "," => madv(&mcomm, advs, r),
+            "@" => madv(&mat, advs, r),
+            "$" => madv(&mdol, advs, r),
+            "=" => madv(&meq, advs, r),
+            "-" => madv(&mmin, advs, r),
+            _ => KA::KE("nyi"),
+        }
+    }
+    else
+    {
+        match verb
+        {
+            "+" => dadv(&dplus, advs, l, r),
+            "!" => dadv(&dexcl, advs, l, r),
+            "*" => dadv(&dstar, advs, l, r),
+            "#" => dadv(&dhash, advs, l, r),
+            "," => dadv(&dcomm, advs, l, r),
+            "@" => dadv(&dat, advs, l, r),
+            "$" => dadv(&ddol, advs, l, r),
+            "=" => dadv(&deq, advs, l, r),
+            "-" => dadv(&dmin, advs, l, r),
+            _ => KA::KE("nyi"),
+        }
     }
 
 }
@@ -812,6 +907,7 @@ fn madv<'a, F: Fn(KA) -> KA>(f: &F, advs: &[&'a str], k: KA) -> KA
                 _ => k, // KE,KZ
             }
         },
+        &[":", ref advs..] => madv(f, advs, k), // ignore : as it is a parsing artefact
         &[] => f(k),
         _ => KA::KE("adv?"),
     }
@@ -823,77 +919,84 @@ fn dadv<'a, F: Fn(KA, KA) -> KA>(f: &F, advs: &[&'a str], l: KA, r: KA) -> KA
     match advs
     {
         &[] => f(l, r),
+
+        &["'"] => eachb(f, l, r),
+
+        &["'", ref advs..] =>
+        {
+            rz(KA::KK(wr(l.i().zip(r.i()).map(|(lk, rk)| dadv(f, advs, lk.clone(), rk.clone())).collect())))
+        },
+
+        &["/:"] => rz(eachr(f, l, r)),
+        &["/:", ref advs..] => rz(KA::KK(wr(r.i().map(|x| dadv(f, advs, l.clone(), x.clone())).collect()))),
+
+        &["\\:"] => rz(eachl(f, l, r)),
+
+        &["\\:", ref advs..] => rz(KA::KK(wr(l.i().map(|x| dadv(f, advs, x.clone(), l.clone())).collect()))),
+
         _ => KA::KE("dadv nyi"),
     }
 }
 
+#[rustfmt_skip]
 fn rz(k: KA) -> KA
 {
-    #[derive(Clone)]
+    #[derive(Debug)]
     enum ST
     {
-        B(Vec<bool>),
-        C(Vec<char>),
-        I(Vec<I>),
         K(Vec<KA>),
+        C(Vec<char>),
+        B(Vec<bool>),
+        I(Vec<I>),
         F(Vec<F>),
+        L(Vec<T>),
         Z,
     }
-    let mut st = ST::Z;
 
     match k.clone()
     {
-        KA::KK(ks) =>
+        KA::KK(ref kk) =>
         {
-            for kk in ks.i().cloned()
+            let mut st = match kk.i().next()
             {
-                st = match (kk, st)
+                Some(&KA::KB(_)) => ST::B(Vec::new()),
+                Some(&KA::KC(_)) => ST::C(Vec::new()),
+                Some(&KA::KF(_)) => ST::F(Vec::new()),
+                Some(&KA::KI(_)) => ST::I(Vec::new()),
+                Some(&KA::KL(_)) => ST::L(Vec::new()),
+                Some(&KA::KK(_)) => ST::K(Vec::new()),
+                _ => return k,
+            };
+
+            println!("Rz: {:?}; {:?}", st, k);
+
+            for ka in kk.i()
+            {
+                match (&mut st, ka)
                 {
-                    (KA::KK(k0), ST::K(mut v)) =>
-                    {
-                        v.extend(k0.i().cloned());
-                        ST::K(v)
-                    },
-                    (KA::KK(k0), ST::Z) => ST::K(k0.i().cloned().collect()),
-                    (KA::KB(k0), ST::B(mut v)) =>
-                    {
-                        v.extend(k0.i().cloned());
-                        ST::B(v)
-                    },
-                    (KA::KB(k0), ST::Z) => ST::B(k0.i().cloned().collect()),
-                    (KA::KC(k0), ST::C(mut v)) =>
-                    {
-                        v.extend(k0.i().cloned());
-                        ST::C(v)
-                    },
-                    (KA::KC(k0), ST::Z) => ST::C(k0.i().cloned().collect()),
-                    (KA::KF(k0), ST::F(mut v)) =>
-                    {
-                        v.extend(k0.i().cloned());
-                        ST::F(v)
-                    },
-                    (KA::KF(k0), ST::Z) => ST::F(k0.i().cloned().collect()),
-                    (KA::KI(k0), ST::I(mut v)) =>
-                    {
-                        v.extend(k0.i().cloned());
-                        ST::I(v)
-                    },
-                    (KA::KI(k0), ST::Z) => ST::I(k0.i().cloned().collect()),
-                    _ => return k,
+                    (&mut ST::K(ref mut v), &KA::KK(ref k0)) => if let K0::A(ref a) = **k0 {v.push(a.clone());} else {return k;},
+                    (&mut ST::I(ref mut v), &KA::KI(ref k0)) => if let K0::A(ref a) = **k0 {v.push(*a);} else {return k;},
+                    (&mut ST::C(ref mut v), &KA::KC(ref k0)) => if let K0::A(ref a) = **k0 {v.push(*a);} else {return k;},
+                    (&mut ST::B(ref mut v), &KA::KB(ref k0)) => if let K0::A(ref a) = **k0 {v.push(*a);} else {return k;},
+                    (&mut ST::F(ref mut v), &KA::KF(ref k0)) => if let K0::A(ref a) = **k0 {v.push(*a);} else {return k;},
+                    (&mut ST::L(ref mut v), &KA::KL(ref k0)) => if let K0::A(ref a) = **k0 {v.push(a.clone());} else {return k;},
+                    (&mut ST::Z, _) => return KA::KZ,
+                    _ => return KA::KE("nyi"),
                 }
             }
 
             match st
             {
-                ST::B(v) => KA::KB(wr(v)),
-                ST::C(v) => KA::KC(wr(v)),
-                ST::I(v) => KA::KI(wr(v)),
-                ST::F(v) => KA::KF(wr(v)),
-                ST::K(v) => KA::KK(wr(v)),
+                ST::K(k) => KA::KK(wr(k)),
+                ST::C(k) => KA::KC(wr(k)),
+                ST::B(k) => KA::KB(wr(k)),
+                ST::I(k) => KA::KI(wr(k)),
+                ST::F(k) => KA::KF(wr(k)),
+                ST::L(k) => KA::KL(wr(k)),
                 ST::Z => KA::KZ,
             }
         },
-        _ => k,
+        k => k,
     }
 }
 
@@ -1097,9 +1200,12 @@ fn main()
     let mut locs: HashMap<String, KA> = HashMap::new();
     let mut glob: HashMap<String, KA> = HashMap::new();
     let stdin = io::stdin();
+    let mut stdout = io::stdout();
     let mut s = String::new();
     loop
     {
+        print!("    ");
+        stdout.flush().unwrap();
         s.clear();
         match stdin.read_line(&mut s)
         {
