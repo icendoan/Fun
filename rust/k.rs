@@ -1,4 +1,5 @@
-// todos: advs, add C (control) token type, verbs, reverse verb lists on fetch
+// todos: advs, add C (control) token type, verbs, reverse verb lists on fetch,
+// KL x
 // done verbs: + - * !: #: ,
 // todo verbs: ! # = @ $
 // done adverbs: /: \: ' / :
@@ -557,7 +558,7 @@ fn lex<'a>(s: &'a str) -> Vec<Tok<'a>> // lexer
         type Item = Tok<'a>;
         fn next(&mut self) -> Option<Tok<'a>>
         {
-            let verb_str = "#_!+-*%$=,~^?:";
+            let verb_str = "#_!+-*%$=,~^?:@";
             let mut iter = self.s.chars().enumerate().peekable();
             let mut m = self.m;
             loop
