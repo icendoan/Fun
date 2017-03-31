@@ -1,7 +1,7 @@
 // todos: advs, add C (control) token type, verbs, reverse verb lists on fetch,
 // KL x
-// done verbs: + - * !: #: ,
-// todo verbs: ! # = @ $
+// done verbs: + - * !: #: , =
+// todo verbs: ! # =: @ $
 // done adverbs: /: \: ' / :
 // todo adverbs: \ ':
 #![feature(slice_patterns, advanced_slice_patterns, custom_attribute)]
@@ -456,7 +456,13 @@ fn mcomm(r: KA) -> KA
 // eq
 fn deq(l: KA, r: KA) -> KA
 {
-    KA::KE("nyi")
+    match (l.a(), r.a())
+    {
+        (true, true) => KA::KB(mk(0, l == r)),
+        (true, false) => rz(KA::KB(wr(r.i().map(|x| l == x).collect()))),
+        (false, true) => rz(KA::KB(wr(l.i().map(|x| r == x).collect()))),
+        (false, false) => eachb(&deq, l, r),
+    }
 }
 // group
 fn meq(r: KA) -> KA
