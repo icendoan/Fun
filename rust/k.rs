@@ -1,7 +1,7 @@
 // todos: advs, add C (control) token type, verbs, reverse verb lists on fetch,
 // KL x
 // done verbs: + - * !: #: , =
-// todo verbs: ! # =: @ $
+// todo verbs: ! # =: @ $ & | < > ^ ` ~ ? % .
 // done adverbs: /: \: ' / :
 // todo adverbs: \ ':
 #![feature(slice_patterns, advanced_slice_patterns, custom_attribute)]
