@@ -1,31 +1,38 @@
-// todos: advs, add C (control) token type, verbs
+// todos: advs, add C (control) token type, verbs, reverse verb lists on fetch
 #![feature(slice_patterns, advanced_slice_patterns, custom_attribute)]
 #![feature(conservative_impl_trait, box_syntax, box_patterns)]
 #![allow(unused_variables, dead_code, unused_attributes)]
 #![deny(unreachable_patterns)]
 #![attribute(rustfmt)]
+
+use std::cmp;
 use std::collections::HashMap;
 use std::io::{self, Write};
 use std::rc::Rc;
 use std::str::FromStr;
+
 type I = i64;
 type F = f64;
 type S = usize;
 type B = bool;
-#[derive(Clone,PartialOrd,PartialEq,Debug)]
+
+#[derive(Clone, PartialOrd, PartialEq, Debug)]
 enum K0<T>
 {
     A(T),
     L(Vec<T>),
 }
+
 type K<T> = Rc<K0<T>>;
-#[derive(Clone,PartialOrd,Ord,PartialEq,Eq,Hash,Debug)]
+
+#[derive(Clone, PartialOrd, Ord, PartialEq, Eq, Hash, Debug)]
 enum Tok<'a>
 {
     V(&'a str),
     N(&'a str),
     A(&'a str),
 }
+
 trait KT: PartialEq + PartialOrd + Clone
 {
 }
@@ -36,7 +43,8 @@ impl KT for F {}
 impl<T: KT> KT for K0<T> {}
 impl KT for KA {} // int char mix err
 impl KT for T {}
-#[derive(Clone,PartialOrd,PartialEq,Debug)]
+
+#[derive(Clone, PartialOrd, PartialEq, Debug)]
 enum KA
 {
     KB(K<B>),
@@ -45,16 +53,18 @@ enum KA
     KF(K<F>),
     KK(K<KA>),
     KE(&'static str),
-    KL(K<T>), // only allow pointfree chains in variables for now
+    KL(K<T>),
+    // only allow pointfree chains in variables for now
     KZ,
 }
+
 impl<T: KT> K0<T>
 {
     fn len(&self) -> S
     {
         match *self
         {
-            K0::A(_) => 0,
+            K0::A(_) => 1,
             K0::L(ref v) => v.len(),
         }
     }
@@ -73,6 +83,7 @@ impl<T: KT> K0<T>
 }
 
 struct KIt<'a, T: 'a + KT>(&'a K0<T>, S);
+
 impl<'a, T: 'a + KT> Iterator for KIt<'a, T>
 {
     type Item = &'a T;
@@ -110,7 +121,9 @@ impl<'a, T: 'a + KT> Iterator for KIt<'a, T>
     }
 }
 
+#[derive(Debug, Clone)]
 struct KAIt<'a>(&'a KA, S);
+
 impl<'a> Iterator for KAIt<'a>
 {
     type Item = KA;
@@ -120,15 +133,33 @@ impl<'a> Iterator for KAIt<'a>
         let KAIt(ka, ref mut ix) = *self;
         let x = *ix;
         match *ka
-        {
-            KA::KB(ref k0) => {*ix += 1; k0.i().nth(x).map(|x| KA::KB(mk(0, x.clone())))},
-            KA::KC(ref k0) => {*ix += 1; k0.i().nth(x).map(|x| KA::KC(mk(0, x.clone())))},
-            KA::KK(ref k0) => {*ix += 1; k0.i().nth(x).map(|x| KA::KK(mk(0, x.clone())))},
-            KA::KF(ref k0) => {*ix += 1; k0.i().nth(x).map(|x| KA::KF(mk(0, x.clone())))},
-            KA::KI(ref k0) => {*ix += 1; k0.i().nth(x).map(|x| KA::KI(mk(0, x.clone())))},
-            KA::KL(ref k0) => {*ix += 1; k0.i().nth(x).map(|x| KA::KL(mk(0, x.clone())))},
-            _ => None,
-        }
+            {
+                KA::KB(ref k0) => {
+                    *ix += 1;
+                    k0.i().nth(x).map(|x| KA::KB(mk(0, x.clone())))
+                },
+                KA::KC(ref k0) => {
+                    *ix += 1;
+                    k0.i().nth(x).map(|x| KA::KC(mk(0, x.clone())))
+                },
+                KA::KK(ref k0) => {
+                    *ix += 1;
+                    k0.i().nth(x).map(|x| x.clone())
+                },
+                KA::KF(ref k0) => {
+                    *ix += 1;
+                    k0.i().nth(x).map(|x| KA::KF(mk(0, x.clone())))
+                },
+                KA::KI(ref k0) => {
+                    *ix += 1;
+                    k0.i().nth(x).map(|x| KA::KI(mk(0, x.clone())))
+                },
+                KA::KL(ref k0) => {
+                    *ix += 1;
+                    k0.i().nth(x).map(|x| KA::KL(mk(0, x.clone())))
+                },
+                _ => None,
+            }
     }
 }
 
@@ -169,6 +200,7 @@ impl KA
         KAIt(self, 0)
     }
 }
+
 fn wr<T: KT>(v: Vec<T>) -> K<T>
 {
     if v.len() == 1
@@ -181,14 +213,14 @@ fn wr<T: KT>(v: Vec<T>) -> K<T>
         Rc::new(K0::L(v))
     }
 }
+
 fn mk<T: KT>(n: S, d: T) -> K<T>
 {
-    Rc::new(if n == 0 { K0::A(d) } else { K0::L(vec![d;n]) })
+    Rc::new(if n == 0 { K0::A(d) } else { K0::L(vec![d; n]) })
 }
 // add
 fn dplus(l: KA, r: KA) -> KA
 {
-    println!("dplus: l: {:?}, r: {:?}", l, r);
     match (l, r)
     {
         (KA::KI(li), KA::KI(ri)) =>
@@ -235,7 +267,24 @@ fn dplus(l: KA, r: KA) -> KA
 // flip
 fn mplus(r: KA) -> KA
 {
-    KA::KE("nyi")
+    let len = r.i().map(|x| x.len()).fold(0, cmp::max);
+    if len == 0
+    {
+        KA::KK(wr(r.i().collect()))
+    }
+    else
+    {
+        let mut vs = vec![Vec::new(); len];
+        for (j, k) in r.i().enumerate()
+        {
+            for (i, kk) in k.i().enumerate()
+            {
+                vs[i].push(kk);
+            }
+        }
+
+        rz(KA::KK(wr(vs.into_iter().map(|x| rz(KA::KK(wr(x)))).collect())))
+    }
 }
 // sub
 fn dmin(l: KA, r: KA) -> KA
@@ -289,90 +338,7 @@ fn mmin(r: KA) -> KA
 // first
 fn mstar(r: KA) -> KA
 {
-    match r
-    {
-        KA::KI(ki) =>
-        {
-            let kp: &K0<I> = &ki;
-            match *kp
-            {
-                K0::A(ref a) => KA::KI(mk(0, a.clone())),
-                K0::L(ref v) =>
-                {
-                    if let Some(a) = v.get(0)
-                    {
-                        KA::KI(mk(0, a.clone()))
-                    }
-                    else
-                    {
-                        KA::KE("empty")
-                    }
-                },
-            }
-        },
-
-        KA::KC(ki) =>
-        {
-            let kp: &K0<char> = &ki;
-            match *kp
-            {
-                K0::A(ref a) => KA::KC(mk(0, a.clone())),
-                K0::L(ref v) =>
-                {
-                    if let Some(a) = v.get(0)
-                    {
-                        KA::KC(mk(0, a.clone()))
-                    }
-                    else
-                    {
-                        KA::KE("empty")
-                    }
-                },
-            }
-        },
-
-        KA::KF(ki) =>
-        {
-            let kp: &K0<F> = &ki;
-            match *kp
-            {
-                K0::A(ref a) => KA::KF(mk(0, a.clone())),
-                K0::L(ref v) =>
-                {
-                    if let Some(a) = v.get(0)
-                    {
-                        KA::KF(mk(0, a.clone()))
-                    }
-                    else
-                    {
-                        KA::KE("empty")
-                    }
-                },
-            }
-        },
-
-        KA::KK(ki) =>
-        {
-            let kp: &K0<KA> = &ki;
-            match *kp
-            {
-                K0::A(ref a) => KA::KK(mk(0, a.clone())),
-                K0::L(ref v) =>
-                {
-                    if let Some(a) = v.get(0)
-                    {
-                        KA::KK(mk(0, a.clone()))
-                    }
-                    else
-                    {
-                        KA::KE("empty")
-                    }
-                },
-            }
-        },
-
-        _ => KA::KE("nyi"),
-    }
+    r.i().next().map(|x| x.clone()).unwrap_or(KA::KZ)
 }
 
 // mul
@@ -411,13 +377,11 @@ fn dstar(l: KA, r: KA) -> KA
         (KA::KK(lk), KA::KK(rk)) => eachb(&dplus, KA::KK(lk), KA::KK(rk)),
         _ => KA::KE("type"),
     }
-
 }
 
 // til
 fn mexcl(r: KA) -> KA
 {
-
     let is_atom = r.a();
     if is_atom
     {
@@ -448,7 +412,16 @@ fn dexcl(l: KA, r: KA) -> KA
 // shape
 fn dhash(l: KA, r: KA) -> KA
 {
-    KA::KE("nyi")
+    match l
+    {
+        KA::KI(ki) => match *ki
+        {
+            K0::A(ref x) => rz(KA::KK(wr(r.i().cycle().take(*x as S).collect()))),
+            K0::L(ref v) => KA::KE("nyi"),
+        },
+
+        _ => KA::KE("LHS of # must be integral"),
+    }
 }
 // count
 fn mhash(r: KA) -> KA
@@ -499,15 +472,10 @@ fn mat(r: KA) -> KA
 // str
 fn mdol(r: KA) -> KA
 {
-    KA::KE("nyi")
+    KA::KC(wr(format!("{:?}", r).chars().collect()))
 }
-// if/cast/dot/mmul/
-// (c:bool atom)$a,b->a if c=t, b if c=f
-// (a:bool)$b -> if a then b else top_of_stack
-// (t:int atom)$(x:s) -> x:tassoc t
-// (t:int list)$(x:s) -> t$'x
-// (a:float matrix l n)$(b: float matrix n r)->float matrix l r
-//
+
+// inner product?
 fn ddol(l: KA, r: KA) -> KA
 {
     KA::KE("nyi")
@@ -528,18 +496,46 @@ fn eachr<F: Fn(KA, KA) -> KA>(f: &F, l: KA, r: KA) -> KA
 {
     (KA::KK(wr(r.i().map(|x| f(l.clone(), x.clone())).collect())))
 }
+
 fn eachl<F: Fn(KA, KA) -> KA>(f: &F, l: KA, r: KA) -> KA
 {
-
     (KA::KK(wr(l.i().map(|x| f(x.clone(), r.clone())).collect())))
+}
+
+fn fold0<F: Fn(KA, KA) -> KA>(f: &F, k: KA) -> KA
+{
+    let mut it = k.i();
+    let mut acc = if let Some(ka) = it.next()
+    {
+        ka
+    }
+    else
+    {
+        return KA::KZ;
+    };
+    for ka in it
+    {
+        acc = f(acc, ka)
+    }
+
+    acc
+}
+
+fn fold<F: Fn(KA, KA) -> KA>(f: &F, init: KA, k: KA) -> KA
+{
+    let mut acc = init;
+    for ka in k.i()
+    {
+        acc = f(acc, ka);
+    }
+    acc
 }
 
 
 // verbs:+!*(/:)#,-(\:)/\@$=
 fn lex<'a>(s: &'a str) -> Vec<Tok<'a>> // lexer
 {
-
-    #[derive(Copy,Clone,PartialEq,Eq,Debug)]
+    #[derive(Copy, Clone, PartialEq, Eq, Debug)]
     enum LM
     {
         N,
@@ -606,7 +602,14 @@ fn lex<'a>(s: &'a str) -> Vec<Tok<'a>> // lexer
                         let (token, text) = self.s.split_at(i);
                         self.s = text.trim();
                         self.m = LM::U;
-                        return Some(Tok::A(token));
+                        if !token.is_empty()
+                        {
+                            return Some(Tok::A(token));
+                        }
+                        else
+                        {
+                            m = LM::U; // no spaces between verb and adverb
+                        }
                     },
                     (LM::U, Some(&(i, c))) if c.is_whitespace() =>
                     {
@@ -624,9 +627,9 @@ fn lex<'a>(s: &'a str) -> Vec<Tok<'a>> // lexer
                     },
 
                     // start of adv
-                    (LM::A, Some(&(_, '/'))) |
-                    (LM::A, Some(&(_, '\\'))) |
-                    (LM::A, Some(&(_, '\''))) =>
+                    (LM::A, Some(&(0, '/'))) |
+                    (LM::A, Some(&(0, '\\'))) |
+                    (LM::A, Some(&(0, '\''))) =>
                     {
                         let _ = iter.next().unwrap();
                     },
@@ -706,7 +709,6 @@ fn lex<'a>(s: &'a str) -> Vec<Tok<'a>> // lexer
                         m = LM::N;
                         let _ = iter.next().unwrap();
                     },
-
                 }
             }
         }
@@ -719,7 +721,7 @@ fn lex<'a>(s: &'a str) -> Vec<Tok<'a>> // lexer
         .collect()
 }
 
-#[derive(Clone,PartialEq,PartialOrd,Debug)]
+#[derive(Clone, PartialEq, PartialOrd, Debug)]
 enum T
 {
     N(String, Vec<String>),
@@ -810,6 +812,7 @@ fn mon<'a>(verb: &'a str, advs: &[&'a str], r: KA) -> KA
 
     if advs.contains(&"/") || advs.contains(&"\\")
     {
+        println!("mon dyad");
         match verb
         {
             "+" => dadv(&dplus, advs, KA::KZ, r),
@@ -826,6 +829,7 @@ fn mon<'a>(verb: &'a str, advs: &[&'a str], r: KA) -> KA
     }
     else
     {
+        println!("mon monad");
         match verb
         {
             "+" => madv(&mplus, advs, r),
@@ -876,13 +880,13 @@ fn dya<'a>(verb: &'a str, advs: &[&'a str], l: KA, r: KA) -> KA
             _ => KA::KE("nyi"),
         }
     }
-
 }
 
 fn madv<'a, F: Fn(KA) -> KA>(f: &F, advs: &[&'a str], k: KA) -> KA
 {
     match advs
     {
+        &["'"] => each(f, k),
         &["'", ref advs..] =>
         {
             match k
@@ -929,10 +933,16 @@ fn dadv<'a, F: Fn(KA, KA) -> KA>(f: &F, advs: &[&'a str], l: KA, r: KA) -> KA
 
         &["/:"] => rz(eachr(f, l, r)),
         &["/:", ref advs..] => rz(KA::KK(wr(r.i().map(|x| dadv(f, advs, l.clone(), x.clone())).collect()))),
-
         &["\\:"] => rz(eachl(f, l, r)),
-
         &["\\:", ref advs..] => rz(KA::KK(wr(l.i().map(|x| dadv(f, advs, x.clone(), l.clone())).collect()))),
+        &["/"] => if let KA::KZ = l
+        {
+            rz(fold0(f, r))
+        }
+        else
+        {
+            rz(fold(f, l, r))
+        },
 
         _ => KA::KE("dadv nyi"),
     }
@@ -954,50 +964,48 @@ fn rz(k: KA) -> KA
     }
 
     match k.clone()
-    {
-        KA::KK(ref kk) =>
         {
-            let mut st = match kk.i().next()
-            {
-                Some(&KA::KB(_)) => ST::B(Vec::new()),
-                Some(&KA::KC(_)) => ST::C(Vec::new()),
-                Some(&KA::KF(_)) => ST::F(Vec::new()),
-                Some(&KA::KI(_)) => ST::I(Vec::new()),
-                Some(&KA::KL(_)) => ST::L(Vec::new()),
-                Some(&KA::KK(_)) => ST::K(Vec::new()),
-                _ => return k,
-            };
-
-            println!("Rz: {:?}; {:?}", st, k);
-
-            for ka in kk.i()
-            {
-                match (&mut st, ka)
+            KA::KK(ref kk) =>
                 {
-                    (&mut ST::K(ref mut v), &KA::KK(ref k0)) => if let K0::A(ref a) = **k0 {v.push(a.clone());} else {return k;},
-                    (&mut ST::I(ref mut v), &KA::KI(ref k0)) => if let K0::A(ref a) = **k0 {v.push(*a);} else {return k;},
-                    (&mut ST::C(ref mut v), &KA::KC(ref k0)) => if let K0::A(ref a) = **k0 {v.push(*a);} else {return k;},
-                    (&mut ST::B(ref mut v), &KA::KB(ref k0)) => if let K0::A(ref a) = **k0 {v.push(*a);} else {return k;},
-                    (&mut ST::F(ref mut v), &KA::KF(ref k0)) => if let K0::A(ref a) = **k0 {v.push(*a);} else {return k;},
-                    (&mut ST::L(ref mut v), &KA::KL(ref k0)) => if let K0::A(ref a) = **k0 {v.push(a.clone());} else {return k;},
-                    (&mut ST::Z, _) => return KA::KZ,
-                    _ => return KA::KE("nyi"),
-                }
-            }
+                    let mut st = match kk.i().next()
+                        {
+                            Some(&KA::KB(_)) => ST::B(Vec::new()),
+                            Some(&KA::KC(_)) => ST::C(Vec::new()),
+                            Some(&KA::KF(_)) => ST::F(Vec::new()),
+                            Some(&KA::KI(_)) => ST::I(Vec::new()),
+                            Some(&KA::KL(_)) => ST::L(Vec::new()),
+                            Some(&KA::KK(_)) => ST::K(Vec::new()),
+                            _ => return k,
+                        };
 
-            match st
-            {
-                ST::K(k) => KA::KK(wr(k)),
-                ST::C(k) => KA::KC(wr(k)),
-                ST::B(k) => KA::KB(wr(k)),
-                ST::I(k) => KA::KI(wr(k)),
-                ST::F(k) => KA::KF(wr(k)),
-                ST::L(k) => KA::KL(wr(k)),
-                ST::Z => KA::KZ,
-            }
-        },
-        k => k,
-    }
+                    for ka in kk.i()
+                        {
+                            match (&mut st, ka)
+                                {
+                                    (&mut ST::K(ref mut v), &KA::KK(ref k0)) => if let K0::A(ref a) = **k0 { v.push(a.clone()); } else { return k; },
+                                    (&mut ST::I(ref mut v), &KA::KI(ref k0)) => if let K0::A(ref a) = **k0 { v.push(*a); } else { return k; },
+                                    (&mut ST::C(ref mut v), &KA::KC(ref k0)) => if let K0::A(ref a) = **k0 { v.push(*a); } else { return k; },
+                                    (&mut ST::B(ref mut v), &KA::KB(ref k0)) => if let K0::A(ref a) = **k0 { v.push(*a); } else { return k; },
+                                    (&mut ST::F(ref mut v), &KA::KF(ref k0)) => if let K0::A(ref a) = **k0 { v.push(*a); } else { return k; },
+                                    (&mut ST::L(ref mut v), &KA::KL(ref k0)) => if let K0::A(ref a) = **k0 { v.push(a.clone()); } else { return k; },
+                                    (&mut ST::Z, _) => return KA::KZ,
+                                    _ => return KA::KE("nyi"),
+                                }
+                        }
+
+                    match st
+                        {
+                            ST::K(k) => KA::KK(wr(k)),
+                            ST::C(k) => KA::KC(wr(k)),
+                            ST::B(k) => KA::KB(wr(k)),
+                            ST::I(k) => KA::KI(wr(k)),
+                            ST::F(k) => KA::KF(wr(k)),
+                            ST::L(k) => KA::KL(wr(k)),
+                            ST::Z => KA::KZ,
+                        }
+                },
+            k => k,
+        }
 }
 
 fn p<T: KT>(x: T, k: K<T>) -> K<T>
@@ -1018,180 +1026,165 @@ fn ev(mut ter: Vec<T>, g: &mut HashMap<String, KA>, v: &mut HashMap<String, KA>)
 {
     loop
     {
+        println!("{:?}", ter);
         let (t2, t1, t0) = (ter.pop(), ter.pop(), ter.pop());
         match (t0, t1, t2)
-        {
-            (None, None, None) => return, // ZZZ
-            (_, _, Some(T::K(KA::KE(e)))) => return pr(T::K(KA::KE(e))), // xxe
-            (t0, Some(T::V(v1, a1)), Some(T::K(k2))) => // xvk
-            {
-                match t0
                 {
-                    Some(T::V(v0, a0)) => // vvk
-                    {
-                        if let KA::KL(kl) = k2
+                    (None, None, None) => return, // ZZZ
+                    (_, _, Some(T::K(KA::KE(e)))) => return pr(T::K(KA::KE(e))), // xxe
+                    (t0, Some(T::V(v1, a1)), Some(T::K(k2))) => // xvk
                         {
-                            let kl = p(T::V(v1, a1), kl);
-                            ter.push(T::V(v0, a0));
-                            ter.push(T::K(KA::KL(kl)));
-                        }
-                        else
+                            match t0
+                                {
+                                    Some(T::V(v0, a0)) => // vvk
+                                        {
+                                            if let KA::KL(kl) = k2
+                                                {
+                                                    let kl = p(T::V(v1, a1), kl);
+                                                    ter.push(T::V(v0, a0));
+                                                    ter.push(T::K(KA::KL(kl)));
+                                                } else {
+                                                let a1s: Vec<&str> = a1.iter().map(AsRef::as_ref).collect();
+                                                ter.push(T::V(v0, a0));
+                                                ter.push(T::K(mon(&v1, &a1s, k2)));
+                                            }
+                                        },
+
+                                    Some(T::N(n0, a0)) => // nvk
+                                        {
+                                            if v1 == ":"
+                                                {
+                                                    if a1.is_empty() && a0.is_empty()
+                                                        {
+                                                            println!("L {:?} := {:?}", n0, k2);
+                                                            v.insert(n0, k2.clone());
+                                                            ter.push(T::K(k2));
+                                                        } else {
+                                                        ter.push(T::K(KA::KE("adv!")))
+                                                    }
+                                                } else if v1 == "::"
+                                                {
+                                                    if a1.is_empty() && a0.is_empty()
+                                                        {
+                                                            println!("G {:?} := {:?}", n0, k2);
+                                                            g.insert(n0, k2.clone());
+                                                            ter.push(T::K(k2));
+                                                        } else {
+                                                        ter.push(T::K(KA::KE("adv!")))
+                                                    }
+                                                } else {
+                                                if let KA::KL(kl) = k2
+                                                    {
+                                                        let kl = p(T::V(v1, a1), kl);
+                                                        ter.push(T::N(n0, a0));
+                                                        ter.push(T::K(KA::KL(kl)));
+                                                    } else {
+                                                    let a0s: Vec<&str> = a0.iter().map(AsRef::as_ref).collect();
+                                                    let a1s: Vec<&str> = a1.iter().map(AsRef::as_ref).collect();
+                                                    ter.push(T::K(dya(&v1, &a1s, nn(&n0, &a0s, g, v), k2)));
+                                                }
+                                            }
+                                        },
+
+                                    Some(T::K(k0)) => // kvk
+                                        {
+                                            if let KA::KL(kl) = k2
+                                                {
+                                                    let kl = p(T::V(v1, a1), kl);
+                                                    ter.push(T::K(k0));
+                                                    ter.push(T::K(KA::KL(kl)));
+                                                } else {
+                                                let a1s: Vec<&str> = a1.iter().map(AsRef::as_ref).collect();
+                                                ter.push(T::K(dya(&v1, &a1s, k0, k2)));
+                                            }
+                                        },
+
+                                    None => // Zvk
+                                        {
+                                            if let KA::KL(kl) = k2
+                                                {
+                                                    let kl = p(T::V(v1, a1), kl);
+                                                    ter.push(T::K(KA::KL(kl)));
+                                                } else {
+                                                let a1s: Vec<&str> = a1.iter().map(AsRef::as_ref).collect();
+                                                ter.push(T::K(mon(&v1, &a1s, k2)));
+                                            }
+                                        },
+                                }
+                        },
+
+                    (t0, Some(T::K(k1)), Some(T::K(k2))) => // xkk
                         {
+                            if let Some(t0) = t0
+                                {
+                                    ter.push(t0);
+                                }
+                            ter.push(T::K(dya("@", &[], k1, k2))); // @ can handle this
+                        },
+
+                    // noun replacement rules
+                    (t0, t1, Some(T::N(n2, a2))) => // xxn
+                        {
+                            if let Some(t0) = t0
+                                {
+                                    ter.push(t0);
+                                }
+                            if let Some(t1) = t1
+                                {
+                                    ter.push(t1);
+                                }
+                            let a2s: Vec<&str> = a2.iter().map(AsRef::as_ref).collect();
+                            ter.push(T::K(nn(&n2, &a2s[..], g, v)));
+                        },
+                    (t0, Some(T::N(n1, a1)), t2) => // xnx
+                        {
+                            if let Some(t0) = t0
+                                {
+                                    ter.push(t0);
+                                }
                             let a1s: Vec<&str> = a1.iter().map(AsRef::as_ref).collect();
-                            ter.push(T::V(v0, a0));
-                            ter.push(T::K(mon(&v1, &a1s, k2)));
-                        }
-                    },
+                            ter.push(T::K(nn(&n1, &a1s[..], g, v)));
+                            if let Some(t2) = t2
+                                {
+                                    ter.push(t2);
+                                }
+                        },
 
-                    Some(T::N(n0, a0)) => // nvk
-                    {
-                        if v1 == ":"
+                    (t0, t1, Some(T::V(v2, a2))) => // xxv
                         {
-                            if a1.is_empty() && a0.is_empty()
-                            {
-                                println!("L {:?} := {:?}", n0, k2);
-                                v.insert(n0, k2.clone());
-                                ter.push(T::K(k2));
-                            }
-                            else
-                            {
-                                ter.push(T::K(KA::KE("adv!")))
-                            }
-                        }
-                        else if v1 == "::"
+                            if let Some(t0) = t0
+                                {
+                                    ter.push(t0);
+                                }
+                            if let Some(t1) = t1
+                                {
+                                    ter.push(t1);
+                                }
+                            ter.push(T::K(KA::KL(mk(0, T::V(v2, a2)))));
+                        },
+
+                    (Some(T::N(n0, a0)), t1, t2) => // nxx
                         {
-                            if a1.is_empty() && a0.is_empty()
-                            {
-                                println!("G {:?} := {:?}", n0, k2);
-                                g.insert(n0, k2.clone());
-                                ter.push(T::K(k2));
-                            }
-                            else
-                            {
-                                ter.push(T::K(KA::KE("adv!")))
-                            }
-                        }
-                        else
+                            let a0s: Vec<&str> = a0.iter().map(AsRef::as_ref).collect();
+                            ter.push(T::K(nn(&n0, &a0s[..], g, v)));
+
+                            if let Some(t1) = t1
+                                {
+                                    ter.push(t1);
+                                }
+                            if let Some(t2) = t2
+                                {
+                                    ter.push(t2);
+                                }
+                        },
+
+                    (None, None, Some(t2)) => return pr(t2), // ZZx
+
+                    (t0, t1, t2) => // xxx
                         {
-                            if let KA::KL(kl) = k2
-                            {
-                                let kl = p(T::V(v1, a1), kl);
-                                ter.push(T::N(n0, a0));
-                                ter.push(T::K(KA::KL(kl)));
-                            }
-                            else
-                            {
-                                let a0s: Vec<&str> = a0.iter().map(AsRef::as_ref).collect();
-                                let a1s: Vec<&str> = a1.iter().map(AsRef::as_ref).collect();
-                                ter.push(T::K(dya(&v1, &a1s, nn(&n0, &a0s, g, v), k2)));
-                            }
-                        }
-                    },
-
-                    Some(T::K(k0)) => // kvk
-                    {
-                        if let KA::KL(kl) = k2
-                        {
-                            let kl = p(T::V(v1, a1), kl);
-                            ter.push(T::K(k0));
-                            ter.push(T::K(KA::KL(kl)));
-                        }
-                        else
-                        {
-                            let a1s: Vec<&str> = a1.iter().map(AsRef::as_ref).collect();
-                            ter.push(T::K(dya(&v1, &a1s, k0, k2)));
-                        }
-                    },
-
-                    None => // Zvk
-                    {
-                        if let KA::KL(kl) = k2
-                        {
-                            let kl = p(T::V(v1, a1), kl);
-                            ter.push(T::K(KA::KL(kl)));
-                        }
-                        else
-                        {
-                            let a1s: Vec<&str> = a1.iter().map(AsRef::as_ref).collect();
-                            ter.push(T::K(mon(&v1, &a1s, k2)));
-                        }
-                    },
+                            println!("DEBUG:\n t0: {:?}\nt1: {:?}\nt1: {:?}", t0, t1, t2);
+                        },
                 }
-            },
-
-            (t0, Some(T::K(k1)), Some(T::K(k2))) => // xkk
-            {
-                if let Some(t0) = t0
-                {
-                    ter.push(t0);
-                }
-                ter.push(T::K(dya("@", &[], k1, k2))); // @ can handle this
-            },
-
-            // noun replacement rules
-            (t0, t1, Some(T::N(n2, a2))) => // xxn
-            {
-                if let Some(t0) = t0
-                {
-                    ter.push(t0);
-                }
-                if let Some(t1) = t1
-                {
-                    ter.push(t1);
-                }
-                let a2s: Vec<&str> = a2.iter().map(AsRef::as_ref).collect();
-                ter.push(T::K(nn(&n2, &a2s[..], g, v)));
-            },
-            (t0, Some(T::N(n1, a1)), t2) => // xnx
-            {
-                if let Some(t0) = t0
-                {
-                    ter.push(t0);
-                }
-                let a1s: Vec<&str> = a1.iter().map(AsRef::as_ref).collect();
-                ter.push(T::K(nn(&n1, &a1s[..], g, v)));
-                if let Some(t2) = t2
-                {
-                    ter.push(t2);
-                }
-
-            },
-
-            (t0, t1, Some(T::V(v2, a2))) => // xxv
-            {
-                if let Some(t0) = t0
-                {
-                    ter.push(t0);
-                }
-                if let Some(t1) = t1
-                {
-                    ter.push(t1);
-                }
-                ter.push(T::K(KA::KL(mk(0, T::V(v2, a2)))));
-            },
-
-            (Some(T::N(n0, a0)), t1, t2) => // nxx
-            {
-                let a0s: Vec<&str> = a0.iter().map(AsRef::as_ref).collect();
-                ter.push(T::K(nn(&n0, &a0s[..], g, v)));
-
-                if let Some(t1) = t1
-                {
-                    ter.push(t1);
-                }
-                if let Some(t2) = t2
-                {
-                    ter.push(t2);
-                }
-            },
-
-            (None, None, Some(t2)) => return pr(t2), // ZZx
-
-            (t0, t1, t2) => // xxx
-            {
-                println!("DEBUG:\n t0: {:?}\nt1: {:?}\nt1: {:?}", t0, t1, t2);
-            },
-        }
     }
 }
 
