@@ -1,5 +1,6 @@
 // todos: advs, add C (control) token type, verbs, reverse verb lists on fetch,
-// KL x
+// refactor ev to return last value on the stack, for use with @
+// kv
 // done verbs: + - * !: #: , =
 // todo verbs: ! # =: @ $ & | < > ^ ` ~ ? % .
 // done adverbs: /: \: ' / :
@@ -998,7 +999,19 @@ fn ev(mut ter: Vec<T>, g: &mut HashMap<String, KA>, v: &mut HashMap<String, KA>)
                 {
                     ter.push(t0);
                 }
-                ter.push(T::K(dya("@", &[], k1, k2))); // @ can handle this
+
+                // flatten KL onto the command stack
+
+                if let KA::KL(verbs) = k1
+                {
+                    let mut vt: Vec<T> = verbs.i().cloned().collect();
+                    vt.reverse();
+                    ter.append(&mut vt);
+                }
+                else
+                {
+                    ter.push(T::K(dya("@", &[], k1, k2))); // @ can handle this
+                }
             },
             // noun replacement rules
             (t0, t1, Some(T::N(n2, a2))) => // xxn
