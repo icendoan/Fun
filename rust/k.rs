@@ -1,6 +1,6 @@
 // todos: advs, add C (control) token type, verbs, reverse verb lists on fetch,
 // refactor ev to return last value on the stack, for use with @
-// kv
+// kv kvv
 // done verbs: + - * !: #: , =
 // todo verbs: ! # =: @ $ & | < > ^ ` ~ ? % .
 // done adverbs: /: \: ' / :
@@ -361,9 +361,19 @@ fn meq(r: KA) -> KA {
     KA::KE("nyi")
 }
 
-// apply
+// index/apply
 fn dat(l: KA, r: KA) -> KA {
     KA::KE("nyi")
+    //match (l, r)
+    //{
+    //    (KA::KL(t)) =>
+    //    {
+    //        let mut v = t.i().cloned().collect();
+    //        v.push(T::K(r));
+    //        let mut g = HashMap::new();
+    //        ev(v, )
+    //    }
+    //}
 }
 // type
 fn mat(r: KA) -> KA {
@@ -615,8 +625,8 @@ fn pa<'a>(s: &'a str) -> Vec<T> {
     ter
 }
 
-fn pr(k: T) {
-    println!("{:?}", k)
+fn pr(k: &T) {
+    println!("{:?}", k);
 }
 
 fn ca(s: &str, p: S) -> char {
@@ -886,14 +896,14 @@ fn p<T: KT>(x: T, k: K<T>) -> K<T> {
     }
 }
 
-fn ev(mut ter: Vec<T>, g: &mut HashMap<String, KA>, v: &mut HashMap<String, KA>) {
+fn ev(mut ter: Vec<T>, g: &mut HashMap<String, KA>, v: &mut HashMap<String, KA>) -> KA {
     loop {
         println!("{:?}", ter);
         let (t2, t1, t0) = (ter.pop(), ter.pop(), ter.pop());
         match (t0, t1, t2)
         {
-            (None, None, None) => return, // ZZZ
-            (_, _, Some(T::K(KA::KE(e)))) => return pr(T::K(KA::KE(e))), // xxe
+            (None, None, None) => return KA::KZ, // ZZZ
+            (_, _, Some(T::K(KA::KE(e)))) => {pr(&T::K(KA::KE(e))); return KA::KE(e) }, // xxe
             (t0, Some(T::V(v1, a1)), Some(T::K(k2))) => // xvk
             {
                 match t0
@@ -1066,7 +1076,13 @@ fn ev(mut ter: Vec<T>, g: &mut HashMap<String, KA>, v: &mut HashMap<String, KA>)
                     ter.push(t2);
                 }
             },
-            (None, None, Some(t2)) => return pr(t2), // ZZx
+                (None, None, Some(t2)) =>
+                {
+                    pr(&t2);
+
+                    return KA::KL(mk(0, t2));
+
+                }, // ZZx
             (t0, t1, t2) => // xxx
             {
                 println!("DEBUG:\n t0: {:?}\nt1: {:?}\nt1: {:?}", t0, t1, t2);
@@ -1097,7 +1113,7 @@ fn main() {
                 let ter = pa(&s);
                 println!("{:?}", &ter);
                 println!("G: {:?}", glob);
-                ev(ter, &mut glob, &mut locs)
+                ev(ter, &mut glob, &mut locs);
             }
             _ => return,
         }
