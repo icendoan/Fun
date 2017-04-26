@@ -1,5 +1,4 @@
 // todos: advs, add C (control) token type, verbs, reverse verb lists on fetch,
-// refactor ev to return last value on the stack, for use with @
 // kv kvv
 // done verbs: + - * !: #: , =
 // todo verbs: ! # =: @ $ & | < > ^ ` ~ ? % .
@@ -22,6 +21,7 @@ type F = f64;
 type S = usize;
 type B = bool;
 
+#[derive(Debug)]
 struct Γ
 {
 	loc: HashMap<String, KA>,
@@ -78,6 +78,7 @@ enum Tok<'a>
 	V(&'a str),
 	N(&'a str),
 	A(&'a str),
+    C(&'a str),
 }
 
 trait KT: PartialEq + PartialOrd + Clone
@@ -118,7 +119,11 @@ impl<T: KT> K0<T>
 	}
 	fn i(&self) -> KIt<T>
 	{
-		KIt(self, 0)
+        match*self
+        {
+            K0::A(ref a) => KIt::AIt(Some(a).into_iter()),
+            K0::L(ref v) => KIt::LIt(v.iter())
+        }
 	}
 	fn a(&self) -> bool
 	{
@@ -131,46 +136,19 @@ impl<T: KT> K0<T>
 }
 
 #[derive(Clone)]
-struct KIt<'a, T: 'a + KT>(&'a K0<T>, S);
-
-impl<'a, T: 'a + KT> Iterator for KIt<'a, T>
+enum KIt<'a,T:'a+KT>{AIt(std::option::IntoIter<&'a T>),LIt(std::slice::Iter<'a,T>)}
+impl<'a,T:'a+KT>Iterator for KIt<'a,T>
 {
-	type Item = &'a T;
-	fn next(&mut self) -> Option<Self::Item>
-	{
-		let KIt(k0, ref mut ix) = *self;
-		match *k0
-		{
-			K0::A(ref a) =>
-			{
-				if *ix == 0
-				{
-					*ix = 1;
-					Some(a)
-				}
-				else
-				{
-					None
-				}
-			},
-
-			K0::L(ref v) =>
-			{
-				if *ix >= v.len()
-				{
-					None
-				}
-				else
-				{
-					*ix += 1;
-					Some(&v[*ix - 1])
-				}
-			},
-		}
-	}
+    type Item=&'a T;
+    fn next(&mut self)->Option<&'a T>
+    {
+        match*self
+        {
+            KIt::AIt(ref mut i)=>i.next(),
+            KIt::LIt(ref mut i)=>i.next(),
+        }
+    }
 }
-
-
 
 #[derive(Clone)]
 enum KAIt<'a>
@@ -183,7 +161,7 @@ enum KAIt<'a>
 	L(KIt<'a, T>),
 	X,
 }
-impl<'a> Iterator for KAIt<'a>
+impl <'a> Iterator for KAIt<'a>
 {
 	type Item = KA;
 	fn next(&mut self) -> Option<KA>
@@ -233,7 +211,7 @@ impl KA
 		}
 	}
 
-	fn i<'a>(&'a self) -> KAIt<'a>
+	fn i(&self) -> KAIt
 	{
 		match *self
 		{
@@ -469,8 +447,8 @@ fn dcomm(γ: &mut Γ, l: KA, r: KA) -> KA
 		(KA::KF(lf), KA::KF(rf)) => KA::KF(wr(lf.i().cloned().chain(rf.i().cloned()).collect())),
 		(KA::KK(lk), KA::KK(rk)) => KA::KK(wr(lk.i().cloned().chain(rk.i().cloned()).collect())),
 		(KA::KE(e), _) | (_, KA::KE(e)) => KA::KE(e),
-		(KA::KK(lk), ra) => dcomm(γ, KA::KK(lk), mcomm(γ, ra)),
-		(la, KA::KK(rk)) => dcomm(γ, mcomm(γ, la), KA::KK(rk)),
+		(KA::KK(lk), ra) => {let ra_=mcomm(γ,ra);dcomm(γ, KA::KK(lk),ra_)},
+		(la, KA::KK(rk)) =>{let la_=mcomm(γ,la);dcomm(γ, la_, KA::KK(rk))},
 		(l, r) => KA::KK(wr(vec![l, r])),
 	}
 }
@@ -844,6 +822,7 @@ fn pa<'a>(s: &'a str) -> Vec<T>
 				adv = Vec::new();
 			},
 			Tok::A(a) => adv.push(a.to_owned()),
+            Tok::C(_) => (),
 		}
 	}
 
@@ -992,26 +971,26 @@ fn madv<'a, F: Fn(&mut Γ, KA) -> KA>(f: &F, advs: &[&'a str], γ: &mut Γ, k: K
 				KA::KI(ki) =>
 				{
 					rz(KA::KK(wr(ki.i()
-					                 .map(|i| madv(f, advs, γ, f(γ, KA::KI(mk(0, *i)))))
+					             .map(|i| {let x=f(γ,KA::KI(mk(0,*i))); madv(f, advs, γ, x)})
 					                 .collect())))
 				},
 				KA::KC(kc) =>
 				{
 					rz(KA::KK(wr(kc.i()
-					                 .map(|i| madv(f, advs, γ, f(γ, KA::KC(mk(0, *i)))))
+					             .map(|i|{let x=f(γ,KA::KC(mk(0,*i)));madv(f, advs, γ, x)})
 					                 .collect())))
 				},
 				KA::KF(kf) =>
 				{
 					rz(KA::KK(wr(kf.i()
-					                 .map(|i| madv(f, advs, γ, f(γ, KA::KF(mk(0, *i)))))
+					             .map(|i|{let x=f(γ,KA::KF(mk(0,*i)));madv(f, advs, γ, x)})
 					                 .collect())))
 				},
 				KA::KB(kb) =>
 				{
 					rz(KA::KK(wr(kb.i()
-					                 .map(|i| madv(f, advs, γ, f(γ, KA::KB(mk(0, *i)))))
-					                 .collect())))
+					             .map(|i|{let x=f(γ,KA::KB(mk(0,*i)));madv(f, advs, γ, x)})
+					             .collect())))
 				},
 				_ => k, // KE,KZ
 			}
@@ -1413,8 +1392,6 @@ fn ev(mut ter: Vec<T>, γ: &mut Γ) -> KA
 
 fn main()
 {
-	let mut locs: HashMap<String, KA> = HashMap::new();
-	let mut glob: HashMap<String, KA> = HashMap::new();
 	let mut γ = Γ::new();
 	let stdin = io::stdin();
 	let mut stdout = io::stdout();
@@ -1435,10 +1412,9 @@ fn main()
 					_ => (),
 				}
 
-				locs.clear();
 				let ter = pa(&s);
 				println!("{:?}", &ter);
-				println!("G: {:?}", glob);
+                println!("{:?}", &γ);
 				ev(ter, &mut γ);
 			},
 			_ => return,
