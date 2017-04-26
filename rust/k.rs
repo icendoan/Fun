@@ -1,5 +1,5 @@
-// todos: advs, add C (control) token type, verbs, reverse verb lists on fetch,
-// kv kvv
+// todos: advs, token type, verbs, reverse verb lists on fetch/refactor noun invocation,
+// kv kvv bxx lxx fxx etc
 // done verbs: + - * !: #: , =
 // todo verbs: ! # =: @ $ & | < > ^ ` ~ ? % .
 // done adverbs: /: \: ' / :
@@ -15,6 +15,7 @@ use std::collections::HashMap;
 use std::io::{self, Write};
 use std::rc::Rc;
 use std::str::FromStr;
+use std::time::Instant;
 
 type I = i64;
 type F = f64;
@@ -37,13 +38,13 @@ impl Γ
 			glob: HashMap::new(),
 		}
 	}
-
+    
 	fn clear(&mut self)
 	{
 		self.loc.clear();
 		self.glob.clear();
 	}
-
+    
 	fn get(&self, k: &str) -> KA
 	{
 		self.loc
@@ -52,7 +53,7 @@ impl Γ
 			.or(self.glob.get(k).map(Clone::clone))
 			.unwrap_or(KA::KE("var?"))
 	}
-
+    
 	fn l(&mut self, k: String, v: KA)
 	{
 		self.loc.insert(k, v);
@@ -195,7 +196,7 @@ impl KA
 			KA::KZ => 0,
 		}
 	}
-
+    
 	fn a(&self) -> bool
 	{
 		match *self
@@ -210,7 +211,7 @@ impl KA
 			KA::KZ => false,
 		}
 	}
-
+    
 	fn i(&self) -> KAIt
 	{
 		match *self
@@ -300,7 +301,7 @@ fn mplus(γ: &mut Γ, r: KA) -> KA
 				vs[i].push(kk);
 			}
 		}
-
+        
 		rz(KA::KK(wr(vs.into_iter().map(|x| rz(KA::KK(wr(x)))).collect())))
 	}
 }
@@ -428,7 +429,7 @@ fn dhash(γ: &mut Γ, l: KA, r: KA) -> KA
 				K0::L(ref v) => KA::KE("nyi"),
 			}
 		},
-
+        
 		_ => KA::KE("LHS of # must be integral"),
 	}
 }
@@ -519,9 +520,9 @@ fn dund(γ: &mut Γ, l: KA, r: KA) -> KA
 fn eachb<F: Fn(&mut Γ, KA, KA) -> KA>(f: &F, γ: &mut Γ, l: KA, r: KA) -> KA
 {
 	rz(KA::KK(wr(l.i()
-	                 .zip(r.i())
-	                 .map(|(x, y)| f(γ, x.clone(), y.clone()))
-	                 .collect())))
+	             .zip(r.i())
+	             .map(|(x, y)| f(γ, x.clone(), y.clone()))
+	             .collect())))
 }
 
 fn each<F: Fn(&mut Γ, KA) -> KA>(f: &F, γ: &mut Γ, k: KA) -> KA
@@ -554,7 +555,7 @@ fn fold0<F: Fn(&mut Γ, KA, KA) -> KA>(f: &F, γ: &mut Γ, k: KA) -> KA
 	{
 		acc = f(γ, acc, ka);
 	}
-
+    
 	acc
 }
 
@@ -585,7 +586,7 @@ fn scan0<F: Fn(&mut Γ, KA, KA) -> KA>(f: &F, γ: &mut Γ, k: KA) -> KA
 		acc = f(γ, acc, ka);
 		v.push(acc.clone());
 	}
-
+    
 	rz(KA::KK(wr(v)))
 }
 
@@ -598,7 +599,7 @@ fn scan<F: Fn(&mut Γ, KA, KA) -> KA>(f: &F, γ: &mut Γ, init: KA, k: KA) -> KA
 		acc = f(γ, acc, ka);
 		v.push(acc.clone());
 	}
-
+    
 	rz(KA::KK(wr(v)))
 }
 
@@ -647,7 +648,7 @@ fn lex<'a>(s: &'a str) -> Vec<Tok<'a>>
 						self.m = LM::U;
 						return Some(Tok::A(token));
 					},
-
+                    
 					(LM::V, None) =>
 					{
 						let token = self.s;
@@ -655,9 +656,9 @@ fn lex<'a>(s: &'a str) -> Vec<Tok<'a>>
 						self.m = LM::U;
 						return Some(Tok::V(token));
 					},
-
+                    
 					(LM::U, None) => return None,
-
+                    
 					// whitespace
 					(LM::N, Some(&(i, c))) if c.is_whitespace() =>
 					{
@@ -687,7 +688,7 @@ fn lex<'a>(s: &'a str) -> Vec<Tok<'a>>
 						let _ = iter.next().unwrap();
 						self.s = &self.s[(i + 1)..];
 					},
-
+                    
 					// end of noun
 					(LM::N, Some(&(i, c))) if verb_str.contains(c) =>
 					{
@@ -696,7 +697,7 @@ fn lex<'a>(s: &'a str) -> Vec<Tok<'a>>
 						self.m = LM::U;
 						return Some(Tok::N(token));
 					},
-
+                    
 					// start of adv
 					(LM::A, Some(&(0, '/'))) |
 					(LM::A, Some(&(0, '\\'))) |
@@ -704,7 +705,7 @@ fn lex<'a>(s: &'a str) -> Vec<Tok<'a>>
 					{
 						let _ = iter.next().unwrap();
 					},
-
+                    
 					// end of adv with suffix
 					// ' is also a suffix, but is caught via other rules
 					// as it can be a distinct token
@@ -716,7 +717,7 @@ fn lex<'a>(s: &'a str) -> Vec<Tok<'a>>
 						self.m = LM::U;
 						return Some(Tok::A(token));
 					},
-
+                    
 					// end of adv without suffix
 					(LM::A, Some(&(i, _))) =>
 					{
@@ -734,7 +735,7 @@ fn lex<'a>(s: &'a str) -> Vec<Tok<'a>>
 					{
 						let _ = iter.next().unwrap();
 					},
-
+                    
 					// mode selection
 					// verbs are only 1 char except for ::
 					(LM::U, Some(&(_, ':'))) =>
@@ -742,7 +743,7 @@ fn lex<'a>(s: &'a str) -> Vec<Tok<'a>>
 						m = LM::V;
 						let _ = iter.next().unwrap();
 					},
-
+                    
 					// pick up ::
 					(LM::V, Some(&(i, ':'))) =>
 					{
@@ -752,7 +753,7 @@ fn lex<'a>(s: &'a str) -> Vec<Tok<'a>>
 						self.m = LM::A;
 						return Some(Tok::V(token));
 					},
-
+                    
 					(LM::V, Some(&(i, _))) =>
 					{
 						let (token, text) = self.s.split_at(i);
@@ -760,7 +761,7 @@ fn lex<'a>(s: &'a str) -> Vec<Tok<'a>>
 						self.m = LM::A;
 						return Some(Tok::V(token));
 					},
-
+                    
 					(LM::U, Some(&(i, c))) if verb_str.contains(c) =>
 					{
 						let _ = iter.next().unwrap();
@@ -769,7 +770,7 @@ fn lex<'a>(s: &'a str) -> Vec<Tok<'a>>
 						self.m = LM::A;
 						return Some(Tok::V(token));
 					},
-
+                    
 					(LM::U, Some(&(_, c))) if "/\\'".contains(c) =>
 					{
 						m = LM::A;
@@ -784,11 +785,11 @@ fn lex<'a>(s: &'a str) -> Vec<Tok<'a>>
 			}
 		}
 	}
-
+    
 	(L {
-		     s: s.trim(),
-		     m: LM::U,
-		 })
+		s: s.trim(),
+		m: LM::U,
+	})
 		.collect()
 }
 
@@ -797,40 +798,62 @@ enum T
 {
 	N(String, Vec<String>),
 	V(String, Vec<String>),
+    B(Vec<T>), // terms in parens
+    L(Vec<T>), // for [list;objects]
+    F(Vec<String>, Vec<T>), // λ, with param list and terms
 	K(KA),
 }
+
+fn pr<'a>(mut tok: Vec<Tok<'a>>) -> Vec<T>
+{
+    
+    fn la<'a>(tok: &[Tok<'a>]) -> Vec<T> {panic!()}
+    fn br<'a>(tok: &[Tok<'a>]) -> Vec<T> {panic!()}
+    fn mt<'a>(o:Tok<'a>,c:Tok<'a>,tok:&'a [Tok<'a>]) -> &'a [Tok<'a>] {panic!()}
+    panic!()
+    /*
+        let mut adv = Vec::new();
+	    let mut ter = Vec::new();
+	    let mut tok = lex(s);
+	    while let Some(t) = tok.pop()
+	{
+		match t
+	{
+		Tok::N(n) =>
+	{
+		adv.reverse();
+		ter.push(T::N(n.to_owned(), adv));
+		adv = Vec::new();
+},
+		Tok::V(v) =>
+	{
+		adv.reverse();
+		ter.push(T::V(v.to_owned(), adv));
+		adv = Vec::new();
+},
+		Tok::A(a) => adv.push(a.to_owned()),
+        Tok::C("(") => (),
+        Tok::C("{") => (),
+        Tok::C("[") =>
+    {
+        let ts = mt(Tok::C("["), Tok::C("]"), &toks[..]);
+        ter.push(T::L(br()))
+}
+}
+}
+        
+	    ter.reverse();
+	    ter
+     */
+}
+
 // just coalesces adverbs
 fn pa<'a>(s: &'a str) -> Vec<T>
 {
-	let mut adv = Vec::new();
-	let mut ter = Vec::new();
-	let mut tok = lex(s);
-	while let Some(t) = tok.pop()
-	{
-		match t
-		{
-			Tok::N(n) =>
-			{
-				adv.reverse();
-				ter.push(T::N(n.to_owned(), adv));
-				adv = Vec::new();
-			},
-			Tok::V(v) =>
-			{
-				adv.reverse();
-				ter.push(T::V(v.to_owned(), adv));
-				adv = Vec::new();
-			},
-			Tok::A(a) => adv.push(a.to_owned()),
-            Tok::C(_) => (),
-		}
-	}
-
-	ter.reverse();
-	ter
+    pr(lex(s))
 }
 
-fn pr(k: &T)
+fn o(k: &T)
 {
 	println!("{:?}", k);
 }
@@ -881,7 +904,7 @@ fn mon<'a>(verb: &'a str, advs: &[&'a str], γ: &mut Γ, r: KA) -> KA
 {
 	// sometimes a monadic positioned verb can be a dyad, if it
 	// has /, /:, \, \: as an adverb
-
+    
 	if advs.contains(&"/") || advs.contains(&"\\")
 	{
 		// println!("mon dyad");
@@ -972,19 +995,19 @@ fn madv<'a, F: Fn(&mut Γ, KA) -> KA>(f: &F, advs: &[&'a str], γ: &mut Γ, k: K
 				{
 					rz(KA::KK(wr(ki.i()
 					             .map(|i| {let x=f(γ,KA::KI(mk(0,*i))); madv(f, advs, γ, x)})
-					                 .collect())))
+					             .collect())))
 				},
 				KA::KC(kc) =>
 				{
 					rz(KA::KK(wr(kc.i()
 					             .map(|i|{let x=f(γ,KA::KC(mk(0,*i)));madv(f, advs, γ, x)})
-					                 .collect())))
+					             .collect())))
 				},
 				KA::KF(kf) =>
 				{
 					rz(KA::KK(wr(kf.i()
 					             .map(|i|{let x=f(γ,KA::KF(mk(0,*i)));madv(f, advs, γ, x)})
-					                 .collect())))
+					             .collect())))
 				},
 				KA::KB(kb) =>
 				{
@@ -1007,30 +1030,30 @@ fn dadv<'a, F: Fn(&mut Γ, KA, KA) -> KA>(f: &F, advs: &[&'a str], γ: &mut Γ, 
 	match advs
 	{
 		&[] => f(γ, l, r),
-
+        
 		&["'"] => eachb(f, γ, l, r),
-
+        
 		&["'", ref advs..] =>
 		{
 			rz(KA::KK(wr(l.i()
-			                 .zip(r.i())
-			                 .map(|(lk, rk)| dadv(f, advs, γ, lk.clone(), rk.clone()))
-			                 .collect())))
+			             .zip(r.i())
+			             .map(|(lk, rk)| dadv(f, advs, γ, lk.clone(), rk.clone()))
+			             .collect())))
 		},
-
+        
 		&["/:"] => rz(eachr(f, γ, l, r)),
 		&["/:", ref advs..] =>
 		{
 			rz(KA::KK(wr(r.i()
-			                 .map(|x| dadv(f, advs, γ, l.clone(), x.clone()))
-			                 .collect())))
+			             .map(|x| dadv(f, advs, γ, l.clone(), x.clone()))
+			             .collect())))
 		},
 		&["\\:"] => rz(eachl(f, γ, l, r)),
 		&["\\:", ref advs..] =>
 		{
 			rz(KA::KK(wr(l.i()
-			                 .map(|x| dadv(f, advs, γ, x.clone(), l.clone()))
-			                 .collect())))
+			             .map(|x| dadv(f, advs, γ, x.clone(), l.clone()))
+			             .collect())))
 		},
 		&["/"] =>
 		{
@@ -1043,7 +1066,7 @@ fn dadv<'a, F: Fn(&mut Γ, KA, KA) -> KA>(f: &F, advs: &[&'a str], γ: &mut Γ, 
 				rz(fold(f, γ, l, r))
 			}
 		},
-
+        
 		&["\\"] =>
 		{
 			if let KA::KZ = l
@@ -1055,7 +1078,7 @@ fn dadv<'a, F: Fn(&mut Γ, KA, KA) -> KA>(f: &F, advs: &[&'a str], γ: &mut Γ, 
 				scan(f, γ, l, r)
 			}
 		},
-
+        
 		_ => KA::KE("dadv nyi"),
 	}
 }
@@ -1073,7 +1096,7 @@ fn rz(k: KA) -> KA
 		L(Vec<T>),
 		Z,
 	}
-
+    
 	match k.clone()
 	{
 		KA::KK(ref kk) =>
@@ -1088,7 +1111,7 @@ fn rz(k: KA) -> KA
 				Some(&KA::KK(_)) => ST::K(Vec::new()),
 				_ => return k,
 			};
-
+            
 			for ka in kk.i()
 			{
 				match (&mut st, ka)
@@ -1163,7 +1186,7 @@ fn rz(k: KA) -> KA
 					_ => return KA::KE("nyi"),
 				}
 			}
-
+            
 			match st
 			{
 				ST::K(k) => KA::KK(wr(k)),
@@ -1197,12 +1220,11 @@ fn ev(mut ter: Vec<T>, γ: &mut Γ) -> KA
 {
 	loop
 	{
-		// println!("{:?}", ter);
 		let (t2, t1, t0) = (ter.pop(), ter.pop(), ter.pop());
 		match (t0, t1, t2)
         {
             (None, None, None) => return KA::KZ, // ZZZ
-            (_, _, Some(T::K(KA::KE(e)))) => {pr(&T::K(KA::KE(e))); return KA::KE(e) }, // xxe
+            (_, _, Some(T::K(KA::KE(e)))) => {o(&T::K(KA::KE(e))); return KA::KE(e) }, // xxe
             (t0, Some(T::V(v1, a1)), Some(T::K(k2))) => // xvk
             {
                 match t0
@@ -1226,7 +1248,6 @@ fn ev(mut ter: Vec<T>, γ: &mut Γ) -> KA
                         {
                             if a1.is_empty() && a0.is_empty()
                             {
-                                //println!("L {:?} := {:?}", n0, k2);
                                 γ.l(n0, k2.clone());
                                 ter.push(T::K(k2));
                             } else {
@@ -1236,7 +1257,6 @@ fn ev(mut ter: Vec<T>, γ: &mut Γ) -> KA
                         {
                             if a1.is_empty() && a0.is_empty()
                             {
-                                //println!("G {:?} := {:?}", n0, k2);
                                 γ.g(n0,k2.clone());
                                 ter.push(T::K(k2));
                             } else {
@@ -1258,7 +1278,7 @@ fn ev(mut ter: Vec<T>, γ: &mut Γ) -> KA
                                     let a0s: Vec<&str> = a0.iter().map(AsRef::as_ref).collect();
                                     nn(&n0, &a0s[..], γ)
                                 };
-
+                                
                                 // if noun is a verb chain, push the verb chain before continuing
                                 // could lead to a recursion error for x::vx?
                                 if let KA::KL(verbs) = kn0
@@ -1289,6 +1309,11 @@ fn ev(mut ter: Vec<T>, γ: &mut Γ) -> KA
                             ter.push(T::K(dya(&v1, &a1s, γ, k0, k2)));
                         }
                     },
+                    
+                    Some(T::B(terms)) => panic!("nyi"),
+                    Some(T::L(terms)) => panic!("nyi"),
+                    Some(T::F(vars,terms)) => panic!("nyi"),
+                    
                     None => // Zvk
                     {
                         if let KA::KL(kl) = k2
@@ -1308,9 +1333,9 @@ fn ev(mut ter: Vec<T>, γ: &mut Γ) -> KA
                 {
                     ter.push(t0);
                 }
-
+                
                 // flatten KL onto the command stack
-
+                
                 if let KA::KL(verbs) = k1
                 {
                     let mut vt: Vec<T> = verbs.i().cloned().collect();
@@ -1375,13 +1400,13 @@ fn ev(mut ter: Vec<T>, γ: &mut Γ) -> KA
                     ter.push(t2);
                 }
             },
-                (None, None, Some(t2)) =>
-                {
-                    pr(&t2);
-
-                    return KA::KL(mk(0, t2));
-
-                }, // ZZx
+            (None, None, Some(t2)) =>
+            {
+                o(&t2);
+                
+                return KA::KL(mk(0, t2));
+                
+            }, // ZZx
             (t0, t1, t2) => // xxx
             {
                 println!("DEBUG:\n t0: {:?}\nt1: {:?}\nt1: {:?}", t0, t1, t2);
@@ -1406,16 +1431,19 @@ fn main()
 			Ok(0) => continue,
 			Ok(_) =>
 			{
+                let start=Instant::now();
 				match s.as_str()
 				{
 					"\\\\\n" => return,
 					_ => (),
 				}
-
+                
 				let ter = pa(&s);
 				println!("{:?}", &ter);
                 println!("{:?}", &γ);
 				ev(ter, &mut γ);
+                let dur = start.elapsed();
+                println!("Query time: {}", dur.as_secs() as f64 + (dur.subsec_nanos() as f64 / 1_000_000_000f64));
 			},
 			_ => return,
 		}
