@@ -509,12 +509,12 @@ fn ddol(γ: &mut Γ, l: KA, r: KA) -> KA
 
 fn mund(γ: &mut Γ, r: KA) -> KA
 {
-	r
+	KA::KE("nyi")
 }
 
 fn dund(γ: &mut Γ, l: KA, r: KA) -> KA
 {
-	r
+    KA::KE("nyi")
 }
 
 fn eachb<F: Fn(&mut Γ, KA, KA) -> KA>(f: &F, γ: &mut Γ, l: KA, r: KA) -> KA
@@ -625,7 +625,7 @@ fn lex<'a>(s: &'a str) -> Vec<Tok<'a>>
 		type Item = Tok<'a>;
 		fn next(&mut self) -> Option<Tok<'a>>
 		{
-			let verb_str = "#_!+-*%$=,~^?:@";
+            let verb_str = "+-*!#,=@$&|<>^~?%.";
 			let mut iter = self.s.chars().enumerate().peekable();
 			let mut m = self.m;
 			loop
