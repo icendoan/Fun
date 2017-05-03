@@ -1,5 +1,7 @@
 // todos: advs, token type, verbs, reverse verb lists on fetch/refactor noun invocation,
+// lex decimals properly
 // kv kvv bxx lxx fxx etc
+// maps
 // done verbs: + - * !: #: , =
 // todo verbs: ! # =: @ $ & | < > ^ ` ~ ? % .
 // done adverbs: /: \: ' / :
@@ -62,7 +64,33 @@ impl Γ
 	{
 		self.glob.insert(k, v);
 	}
+    fn s<'a>(&'a mut self) -> Σ<'a>
+    {
+        Σ { s: HashMap::new(), b: self }
+    }
 }
+
+struct Σ<'a>
+{
+    s: HashMap<String, KA>,
+    b: &'a mut Γ
+}
+
+impl<'a>Σ<'a>
+{
+    fn get(&self,k:&str)->KA
+    {
+        self.s.get(k)
+            .map(Clone::clone)
+            .unwrap_or(self.b.get(k))
+    }
+    fn v(&mut self,k:String,v:KA)
+    {
+        self.s.insert(k,v);
+    }
+}
+
+
 
 #[derive(Clone, PartialOrd, PartialEq, Debug)]
 enum K0<T>
@@ -103,8 +131,8 @@ enum KA
 	KF(K<F>),
 	KK(K<KA>),
 	KE(&'static str),
-	KL(K<T>),
-	// only allow pointfree chains in variables for now
+	KL(K<T>), // only allow pointfree chains in variables for now
+    //KM(KA,KA),
 	KZ,
 }
 
@@ -478,17 +506,56 @@ fn meq(γ: &mut Γ, r: KA) -> KA
 // index/apply
 fn dat(γ: &mut Γ, l: KA, r: KA) -> KA
 {
-	KA::KE("nyi")
-	// match (l, r)
-	//
-	//    (KA::KL(t)) =>
-	//    {
-	//        let mut v = t.i().cloned().collect();
-	//        v.push(T::K(r));
-	//        let mut g = HashMap::new();
-	//        ev(v, )
-	//    }
-	//
+    fn index<T: KT>(x: K<T>, y: K<I>) -> K<T>
+    {
+        match *x
+        {
+            K0::L(ref x) =>
+            {
+                let l = y.len();
+                let mut v = Vec::with_capacity(l);
+                for i in y.i()
+                {
+                    v.push(x[((*i)%l as I) as S].clone());
+                }
+
+                wr(v)
+            }
+
+            K0::A(ref x) =>
+            {
+                wr(vec![x.clone();y.len()])
+            }           
+        }
+    }
+
+    match (l, r) 
+    {
+        (KA::KL(t), r) =>
+        {
+            // let mut σ = γ.s(); // lexical scoping
+            let mut v: Vec<T> =  t.i().cloned().collect();
+            v.push(T::K(r));
+            //ev(v, &mut σ)
+            ev(v, γ) // lexical scoping without local shadowing! 
+        },
+
+        (l, KA::KI(i)) =>
+        {
+            match l
+            {
+                KA::KB(k) => KA::KB(index(k,i)),
+                KA::KI(k) => KA::KI(index(k,i)),
+                KA::KC(k) => KA::KC(index(k,i)),
+                KA::KF(k) => KA::KF(index(k,i)),
+                KA::KK(k) => KA::KK(index(k,i)),
+                KA::KL(k) => KA::KL(index(k,i)),
+                l => l
+            }
+        },
+
+        _ => KA::KE("type")
+    }
 }
 // type
 fn mat(γ: &mut Γ, r: KA) -> KA
@@ -501,7 +568,7 @@ fn mdol(γ: &mut Γ, r: KA) -> KA
 	KA::KC(wr(format!("{:?}", r).chars().collect()))
 }
 
-// inner product?
+// inner product/cast?
 fn ddol(γ: &mut Γ, l: KA, r: KA) -> KA
 {
 	KA::KE("nyi")
@@ -626,6 +693,7 @@ fn lex<'a>(s: &'a str) -> Vec<Tok<'a>>
 		fn next(&mut self) -> Option<Tok<'a>>
 		{
             let verb_str = "+-*!#,=@$&|<>^~?%.";
+            let control_str = "()[]{};";
 			let mut iter = self.s.chars().enumerate().peekable();
 			let mut m = self.m;
 			loop
@@ -690,7 +758,7 @@ fn lex<'a>(s: &'a str) -> Vec<Tok<'a>>
 					},
                     
 					// end of noun
-					(LM::N, Some(&(i, c))) if verb_str.contains(c) =>
+					(LM::N, Some(&(i, c))) if verb_str.contains(c) || control_str.contains(c) =>
 					{
 						let (token, text) = self.s.split_at(i);
 						self.s = text;
@@ -770,8 +838,17 @@ fn lex<'a>(s: &'a str) -> Vec<Tok<'a>>
 						self.m = LM::A;
 						return Some(Tok::V(token));
 					},
+
+                    (LM::U, Some(&(i, c))) if control_str.contains(c) =>
+                    {
+                        let _ = iter.next().unwrap();
+                        let (token, text) = self.s.split_at(i+1);
+                        self.s = text;
+                        self.m = LM::U;
+                        return Some(Tok::C(token));
+                    },
                     
-					(LM::U, Some(&(_, c))) if "/\\'".contains(c) =>
+					(LM::U, Some(&(_, c))) if r"/'\".contains(c) =>
 					{
 						m = LM::A;
 						let _ = iter.next().unwrap();
@@ -806,11 +883,11 @@ enum T
 
 fn pr<'a>(mut tok: Vec<Tok<'a>>) -> Vec<T>
 {
-    
     fn la<'a>(tok: &[Tok<'a>]) -> Vec<T> {panic!()}
     fn br<'a>(tok: &[Tok<'a>]) -> Vec<T> {panic!()}
     fn mt<'a>(o:Tok<'a>,c:Tok<'a>,tok:&'a [Tok<'a>]) -> &'a [Tok<'a>] {panic!()}
-    panic!()
+    Vec::new()
+    //panic!()
     /*
         let mut adv = Vec::new();
 	    let mut ter = Vec::new();
@@ -850,13 +927,15 @@ fn pr<'a>(mut tok: Vec<Tok<'a>>) -> Vec<T>
 // just coalesces adverbs
 fn pa<'a>(s: &'a str) -> Vec<T>
 {
-    pr(lex(s))
+    pr(tr(lex(s)))
 }
 
 fn o(k: &T)
 {
 	println!("{:?}", k);
 }
+
+fn tr<T:std::fmt::Debug>(x:T)->T{println!("{:?}",x);x}
 
 fn ca(s: &str, p: S) -> char
 {
