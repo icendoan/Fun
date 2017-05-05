@@ -560,6 +560,13 @@ fn dat(γ: &mut Γ, l: KA, r: KA) -> KA
 // type
 fn mat(γ: &mut Γ, r: KA) -> KA
 {
+    /*
+    KA::KI(mk(0, match r
+              {
+                  KA::KB(_) => 1,
+                  KA::KB(_) => panic!()
+              }))
+    */
 	KA::KE("nyi")
 }
 // str
@@ -883,10 +890,24 @@ enum T
 
 fn pr<'a>(mut tok: Vec<Tok<'a>>) -> Vec<T>
 {
-    fn la<'a>(tok: &[Tok<'a>]) -> Vec<T> {panic!()}
-    fn br<'a>(tok: &[Tok<'a>]) -> Vec<T> {panic!()}
-    fn mt<'a>(o:Tok<'a>,c:Tok<'a>,tok:&'a [Tok<'a>]) -> &'a [Tok<'a>] {panic!()}
+    fn la<'a>(tok: &[Tok<'a>]) -> Vec<T> // lambda
+    {
+        panic!()
+    }
+    fn br<'a>(tok: &[Tok<'a>]) -> Vec<T> // brackets
+    {panic!()}
+    fn mt<'a, 'b>(o:Tok<'b>,c:Tok<'b>,tok:&'a [Tok<'a>]) -> &'a [Tok<'a>]
+    {panic!()}
+
+
+    fn lambda<'a, T: Iterator<Item=Tok<'a>>>(tok: &mut T) -> Vec<T> {let params = list(tok); params}
+    fn list<'a, T: Iterator<Item=Tok<'a>>>(tok: &mut T) -> Vec<T> {Vec::new()}
+
     Vec::new()
+
+
+
+
     //panic!()
     /*
         let mut adv = Vec::new();
