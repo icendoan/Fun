@@ -11,7 +11,6 @@ lteZero_x_Z_is_Z LTEZero = Refl
 lemma0 : x `LTE` y -> Either (x = y) ((S x) `LTE` y)
 lemma0 {x = Z} {y = Z} l = Left Refl
 lemma0 {x = Z} {y = (S k)} LTEZero = Right (LTESucc LTEZero)
-lemma0 {x = (S k)} {y = Z} l impossible
 lemma0 {x = (S k)} {y = (S j)} (LTESucc l) =
   case lemma0 l of
     (Left l) => Left (cong l)
@@ -19,15 +18,11 @@ lemma0 {x = (S k)} {y = (S j)} (LTESucc l) =
 
 nvalley_at_zero_lemma : (f : Nat -> Nat) -> 
                         (dec : Decreasing f) -> 
-                        (start : Nat) -> 
+                        (start, posn : Nat) -> 
                         (isZero : 0 = f start) -> 
-                        (posn : Nat) -> 
                         (lte : start `LTE` posn) -> 0 = f posn
-nvalley_at_zero_lemma f dec k isZero x lte = 
-  let prfLTE = dec k x lte in 
-  let prfX0 = (sym isZero) `replace` prfLTE in
-  let prfX1 = lteZero_x_Z_is_Z prfX0 in
-  sym prfX1
+nvalley_at_zero_lemma f dec k x isZero lte = sym $ lteZero_x_Z_is_Z $ (sym isZero) `replace` (dec k x lte)
+  
   
 nvalley_at_zero : (f : Nat -> Nat) ->
                   (dec : Decreasing f) ->
@@ -38,10 +33,8 @@ nvalley_at_zero : (f : Nat -> Nat) ->
 nvalley_at_zero f dec start isZero Z = Single Refl
 nvalley_at_zero f dec start isZero (S k) = 
   let rec = nvalley_at_zero f dec start isZero k in
-  let lhs = sym isZero in
-  let rhs = nvalley_at_zero_lemma f dec start isZero (start + (S k)) (lteAddRight start) in
-  let prf = lhs `trans` rhs in
-  Range prf rec
+  let rhs = nvalley_at_zero_lemma f dec start (start + (S k)) isZero (lteAddRight start) in
+  Range ((sym isZero) `trans` rhs) rec
   
 nvalley_test_range : (f : Nat -> Nat) -> 
                      (dec : Decreasing f) -> 
@@ -58,21 +51,12 @@ nvalley_test_range f dec k (S j) =
           (Right r0) => Right ((k + (S j)) ** r0)
     (Right (new_start ** ltPrf)) => Right (new_start ** ltPrf)
 
-nvalley_step : (f : Nat -> Nat) -> 
-               (prf : Decreasing f) -> 
-               (k, n : Nat) ->
-               (spine : Nat) -> 
-               (spine = f k) -> (start : Nat ** NValley f start n )
-nvalley_step f prf k n (f k) Refl = case (decEq 0 (f k)) of
+nvalley_step : (f : Nat -> Nat) -> (prf : Decreasing f) -> (k, n : Nat) -> (start : Nat ** NValley f start n )
+nvalley_step f prf k n = case (decEq 0 (f k)) of
   Yes prf0 => (k ** nvalley_at_zero f prf k prf0 n)
   No _ => case nvalley_test_range f prf k n of
     (Left l) => (k ** l)
-    (Right (new_start ** ltePrf)) => nvalley_step f prf new_start n (f new_start) Refl
+    (Right (new_start ** ltePrf)) => nvalley_step f prf new_start n
   
-nvalley : (f : Nat -> Nat) ->
-          (prf : Decreasing f) ->
-          (n : Nat) -> (k : Nat ** NValley f k n)
-nvalley f prf n = nvalley_step f prf 0 n (f 0) Refl
-
-constNDecreasing : (result : Nat) -> (Decreasing (const result))
-constNDecreasing result = \n, k, _ => lteRefl 
+nvalley : (f : Nat -> Nat) -> (prf : Decreasing f) -> (n : Nat) -> (k : Nat ** NValley f k n)
+nvalley f prf n = nvalley_step f prf 0 n
