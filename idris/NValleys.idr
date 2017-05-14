@@ -1,3 +1,4 @@
+%default total
 data NValley : (f : Nat -> Nat) -> (n : Nat) -> (l : Nat) -> Type where
   Single : (f n = f n) -> NValley f n 0
   Range  : (f n = f (n + (S l))) -> NValley f n l -> NValley f n (S l)
@@ -23,16 +24,14 @@ nvalley_at_zero_lemma : (f : Nat -> Nat) ->
                         (lte : start `LTE` posn) -> 0 = f posn
 nvalley_at_zero_lemma f dec k x isZero lte = sym $ lteZero_x_Z_is_Z $ (sym isZero) `replace` (dec k x lte)
   
-  
 nvalley_at_zero : (f : Nat -> Nat) ->
                   (dec : Decreasing f) ->
-                  (start : Nat) ->
+                  (start, len : Nat) ->
                   (isZero : 0 = f start) ->
-                  (len : Nat) ->
                   NValley f start len
-nvalley_at_zero f dec start isZero Z = Single Refl
-nvalley_at_zero f dec start isZero (S k) = 
-  let rec = nvalley_at_zero f dec start isZero k in
+nvalley_at_zero f dec start Z isZero = Single Refl
+nvalley_at_zero f dec start (S k) isZero = 
+  let rec = nvalley_at_zero f dec start k isZero  in
   let rhs = nvalley_at_zero_lemma f dec start (start + (S k)) isZero (lteAddRight start) in
   Range ((sym isZero) `trans` rhs) rec
   
@@ -51,12 +50,17 @@ nvalley_test_range f dec k (S j) =
           (Right r0) => Right ((k + (S j)) ** r0)
     (Right (new_start ** ltPrf)) => Right (new_start ** ltPrf)
 
-nvalley_step : (f : Nat -> Nat) -> (prf : Decreasing f) -> (k, n : Nat) -> (start : Nat ** NValley f start n )
-nvalley_step f prf k n = case (decEq 0 (f k)) of
-  Yes prf0 => (k ** nvalley_at_zero f prf k prf0 n)
+nvalley_step : (f : Nat -> Nat) -> 
+               (prf : Decreasing f) -> 
+               (k, n : Nat) ->
+               (spine : Nat) -> 
+               (spine = f k) -> 
+               (start : Nat ** NValley f start n)
+nvalley_step f prf k n (f k) Refl = case (decEq 0 (f k)) of
+  Yes prf0 => (k ** nvalley_at_zero f prf k n prf0)
   No _ => case nvalley_test_range f prf k n of
     (Left l) => (k ** l)
-    (Right (new_start ** ltePrf)) => nvalley_step f prf new_start n
-  
+    (Right (new_start ** ltPrf)) => nvalley_step f prf new_start n ((f k) `assert_smaller` f new_start) Refl
+ 
 nvalley : (f : Nat -> Nat) -> (prf : Decreasing f) -> (n : Nat) -> (k : Nat ** NValley f k n)
-nvalley f prf n = nvalley_step f prf 0 n
+nvalley f prf n = nvalley_step f prf 0 n (f 0) Refl
