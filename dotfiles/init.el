@@ -2,6 +2,7 @@
 
 (setq evil-want-C-d-scroll t)
 (setq evil-want-C-u-scroll t)
+(setq tab-width 4)
 
 (require 'package)
 (add-to-list 'package-archives
@@ -20,9 +21,9 @@
 
 (use-package evil-leader
   :diminish evil-leader-mode
-  :init (add-hook 'evil-mode-hook #'evil-leader-mode)
+  :init (add-hook 'evil-mode-hook #'global-evil-leader-mode)
   :config
-  (evil-leader/set-leader "<SPC>")
+  (evil-leader/set-leader (kbd "<SPC>"))
   (evil-leader/set-key "f" #'evil-avy-goto-char)
   (evil-leader/set-key "%" #'evil-avy-goto-line)
   (evil-leader/set-key "n" #'next-error))
@@ -32,18 +33,19 @@
   :init
   
   (use-package evil-search-highlight-persist
-	:config (global-evil-search-highlight-persist t))
+    :config (global-evil-search-highlight-persist t))
   (use-package evil-numbers
-	:config
-	(evil-leader/set-key (kbd "+") #'evil-numbers/inc-at-pt)
-	(evil-leader/set-key (kbd "-") #'evil-numbers/dec-at-pt))
+    :config
+    (evil-leader/set-key (kbd "+") #'evil-numbers/inc-at-pt)
+    (evil-leader/set-key (kbd "-") #'evil-numbers/dec-at-pt))
   (use-package evil-mc
-	:diminish evil-mc-mode
-	:init (add-hook 'evil-mode-hook #'evil-mc-mode))
+    :diminish evil-mc-mode
+    :init (add-hook 'evil-mode-hook #'global-evil-mc-mode))
   (use-package evil-tabs
-	:diminish evil-tabs-mode
-	:init (add-hook 'evil-mode-hook #'evil-tabs-mode))
-  (use-package evil-surround)
+    :diminish evil-tabs-mode
+    :init (add-hook 'evil-mode-hook #'global-evil-tabs-mode))
+  (use-package evil-surround
+    :init (add-hook 'evil-mode-hook #'global-evil-surround-mode))
   (use-package evil-smartparens
 	:diminish evil-smartparens-mode
 	:init (add-hook 'evil-mode #'evil-smartparens-mode))
@@ -51,7 +53,9 @@
   :config
   
   (define-key evil-normal-state-map (kbd "j") #'evil-next-visual-line)
-  (define-key evil-normal-state-map (kbd "k") #'evil-previous-visual-line))
+  (define-key evil-visual-state-map (kbd "j") #'evil-next-visual-line)
+  (define-key evil-normal-state-map (kbd "k") #'evil-previous-visual-line)
+  (define-key evil-visual-state-map (kbd "k") #'evil-previous-visual-line))
 
 (use-package avy
   :ensure
@@ -160,12 +164,12 @@
   :mode ("\\.rs\\'" . rust-mode)
   :init
   (add-hook 'rust-mode-hook
-			(lambda ()
-			  (if (file-exists-p "Cargo.toml")
-				  (set (make-local-variable 'compile-command) "cargo check --lib")
-				(if (file-exists-p "../Cargo.toml")
-					(set (make-local-variable 'compile-command) "cargo check --manifest-path ../Cargo.toml --lib"))
-				(set (make-local-variable 'compile-command) (concat "rustc " buffer-file-name)))))
+	    (lambda ()
+	      (if (file-exists-p "Cargo.toml")
+		  (set (make-local-variable 'compile-command) "cargo check --lib")
+		(if (file-exists-p "../Cargo.toml")
+		    (set (make-local-variable 'compile-command) "cargo check --manifest-path ../Cargo.toml --lib"))
+		(set (make-local-variable 'compile-command) (concat "rustc " buffer-file-name)))))
   (setq rust-format-on-save t)
   :config
   (use-package flycheck-rust
@@ -234,6 +238,7 @@
 (desktop-save-mode 1)
 (tool-bar-mode t)
 (evil-mode)
+(electric-pair-mode)
 
 
 
@@ -244,7 +249,8 @@
  ;; If there is more than one, they won't work right.
  '(package-selected-packages
    (quote
-    (q-mode evil-org helm evil-smartparens use-package racer popup magit idris-mode helm-core groovy-mode gnu-apl-mode flycheck-rust evil-tabs evil-surround evil-search-highlight-persist evil-numbers evil-mc evil-leader evil-avy dired+ company color-theme-sanityinc-solarized cargo))))
+	(company-racer evil-magit magit-gh-pulls q-mode evil-org helm evil-smartparens use-package racer popup magit idris-mode helm-core groovy-mode gnu-apl-mode flycheck-rust evil-tabs evil-surround evil-search-highlight-persist evil-numbers evil-mc evil-leader evil-avy dired+ company color-theme-sanityinc-solarized cargo)))
+ '(tab-width 4))
 (custom-set-faces
  ;; custom-set-faces was added by Custom.
  ;; If you edit it by hand, you could mess it up, so be careful.
