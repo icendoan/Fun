@@ -23,7 +23,7 @@
   :diminish evil-leader-mode
   :init (add-hook 'evil-mode-hook #'global-evil-leader-mode)
   :config
-  (evil-leader/set-leader (kbd "<SPC>"))
+  (evil-leader/set-leader "<SPC>")
   (evil-leader/set-key "f" #'evil-avy-goto-char)
   (evil-leader/set-key "%" #'evil-avy-goto-line)
   (evil-leader/set-key "n" #'next-error))
@@ -188,11 +188,6 @@
 	  (add-to-list 'company-backends 'company-racer)
 	  (setq company-tooltip-align-annotations t)
 	  (evil-leader/set-key-for-mode 'rust-mode "d" #'racer-find-definition)))
-
-(use-package cargo
-	:commands cargo-minor-mode
-	:diminish cargo-minor-mode
-	:init (add-hook 'rust-mode-hook #'cargo-minor-mode))
 
 (use-package gnu-apl-mode
   :mode ("\\.apl\\'" . gnu-apl-mode)
