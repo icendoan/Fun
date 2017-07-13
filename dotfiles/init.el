@@ -227,7 +227,8 @@
   (load-theme 'sanityinc-solarized-dark t))
 
 (show-paren-mode)
-(global-set-key (kbd "<f5>")  #'compile)
+(global-set-key (kbd "<f5>") #'compile)
+(global-set-key (kbd "<f4>") #'flycheck-buffer)
 (setq compilation-scroll-output 'first-error)
 (desktop-save-mode 1)
 (tool-bar-mode t)
