@@ -102,9 +102,9 @@
 (use-package magit
   :ensure
   :commands magit-status
-  :config
+  :init
   (use-package magit-gh-pulls
-	:config (add-hook 'magit-mode-hook #'turn-on-magit-gh-pulls))
+	:init (add-hook 'magit-mode-hook #'turn-on-magit-gh-pulls))
   (use-package evil-magit)
   (defun magit-ignored-files ()
 	(magit-git-items "ls-files" "--others" "--ignored" "--exclude-standard" "-z" "--directory"))
@@ -171,10 +171,9 @@
 		    (set (make-local-variable 'compile-command) "cargo check --manifest-path ../Cargo.toml --lib"))
 		(set (make-local-variable 'compile-command) (concat "rustc " buffer-file-name)))))
   (setq rust-format-on-save t)
-  :config
   (use-package flycheck-rust
 	:commands flycheck-rust-setup
-	:config (add-hook 'flycheck-mode-hook #'flycheck-rust-setup)))
+	:init (add-hook 'flycheck-mode-hook #'flycheck-rust-setup)))
 
 (use-package racer
 	:commands racer-mode
