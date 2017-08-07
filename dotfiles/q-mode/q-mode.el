@@ -49,7 +49,7 @@
   :type 'file
   :group 'q-init)
 
-(defcustom q-qsm-path "/data/q/qsm"
+(defcustom q-qsm-path "qsm"
   "Path to the qsm binary to run q"
   :type 'file
   :group 'q-init)
