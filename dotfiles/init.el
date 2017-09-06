@@ -203,8 +203,8 @@
   (evil-leader/set-key-for-mode 'gnu-apl-mode "r" #'gnu-apl-interactive-send-buffer)
   (evil-leader/set-key-for-mode 'gnu-apl-mode "e" #'gnu-apl-eval-line))
 
-(byte-compile-file "~/.emacs.d/q-mode/q-mode.el")
-(load-file "~/.emacs.d/q-mode/q-mode.elc")
+(byte-compile-file "~/.emacs.d/q-mode.el")
+(load-file "~/.emacs.d/q-mode.elc")
 
 (use-package q-mode
   :mode ("\\.[qk]\\'" . q-mode)
