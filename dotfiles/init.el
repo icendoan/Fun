@@ -127,7 +127,9 @@
   (evil-leader/set-key-for-mode 'org-mode "l" #'org-metaright)
   (evil-leader/set-key-for-mode 'org-mode "t" #'org-todo)
   (evil-leader/set-key-for-mode 'org-mode "p" #'org-priority-up)
-  (evil-leader/set-key-for-mode 'org-mode "P" #'org-priority-down))
+  (evil-leader/set-key-for-mode 'org-mode "P" #'org-priority-down)
+  (setq org-src-tab-acts-natively t)
+  (setq org-src-fontify-natively t))
 
 (use-package company
   :config
@@ -141,6 +143,9 @@
 
 (use-package doc-view
   :config (setq doc-view-continuous t))
+
+(use-package fiplr)
+(use-package adaptive-wrap)
 
 ;(use-package lsp-mode
 ;  :init (add-hook 'prog-mode-hook #'lsp-mode)
@@ -235,8 +240,6 @@
 (evil-mode)
 (electric-pair-mode)
 
-
-
 (custom-set-variables
  ;; custom-set-variables was added by Custom.
  ;; If you edit it by hand, you could mess it up, so be careful.
@@ -244,7 +247,8 @@
  ;; If there is more than one, they won't work right.
  '(package-selected-packages
    (quote
-	(company-racer evil-magit magit-gh-pulls q-mode evil-org helm evil-smartparens use-package racer popup magit idris-mode helm-core groovy-mode gnu-apl-mode flycheck-rust evil-tabs evil-surround evil-search-highlight-persist evil-numbers evil-mc evil-leader evil-avy dired+ company color-theme-sanityinc-solarized cargo)))
+	(fiplr company-racer evil-magit magit-gh-pulls q-mode evil-org helm evil-smartparens use-package racer popup magit idris-mode helm-core groovy-mode gnu-apl-mode flycheck-rust evil-tabs evil-surround evil-search-highlight-persist evil-numbers evil-mc evil-leader evil-avy dired+ company color-theme-sanityinc-solarized cargo)))
+ '(q-qsm-path "qsm")
  '(tab-width 4))
 (custom-set-faces
  ;; custom-set-faces was added by Custom.
