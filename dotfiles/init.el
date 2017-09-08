@@ -245,6 +245,10 @@
  ;; If you edit it by hand, you could mess it up, so be careful.
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
+ '(company-dabbrev-ignore-case nil)
+ '(custom-safe-themes
+   (quote
+	("4cf3221feff536e2b3385209e9b9dc4c2e0818a69a1cdb4b522756bcdf4e00a4" default)))
  '(package-selected-packages
    (quote
 	(fiplr company-racer evil-magit magit-gh-pulls q-mode evil-org helm evil-smartparens use-package racer popup magit idris-mode helm-core groovy-mode gnu-apl-mode flycheck-rust evil-tabs evil-surround evil-search-highlight-persist evil-numbers evil-mc evil-leader evil-avy dired+ company color-theme-sanityinc-solarized cargo)))

@@ -84,25 +84,10 @@
   (inferior-q-mode)
   (comint-exec buf "q" q-qsm-path nil nil)
   (setq comint-input-ring-file-name (concat (getenv "HOME") "/.q_history"))
-  (add-hook 'comint-output-filter-functions 'q-mode-insert-inline-image-output nil t)
   (comint-read-input-ring)
   (set-process-sentinel (get-process "q") 'q-process-sentinel)
   (goto-char (point-max))
   )
-
-(defun q-mode-insert-inline-image-output (string)
-  "Checks to see if the buffer name is a q shell, then replaces image responses from qsm with inline images."
-  (unless q-mode-inhibit-filter ; not allowed to recurse back into the filter
-    (let (q-mode-inhibit-filter t))
-    (save-excursion
-      (goto-char (point-max))
-      (beginning-of-line)
-      (when (and (equal (buffer-name) "*q*")
-		 (string-match-p string "GNUPLOT .*"))
-	(inline (ignore-errors
-		  (let ((image (create-image (substring string 8 (length string)))))
-		    (beginning-of-line)
-		    (insert-image image))))))))
 
 (defun q-process-sentinel (proc message)
   "Sentinel for use with q processes.
