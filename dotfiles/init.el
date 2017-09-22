@@ -105,7 +105,8 @@
   :init
   (use-package magit-gh-pulls
 	:init (add-hook 'magit-mode-hook #'turn-on-magit-gh-pulls))
-  (use-package evil-magit)
+  (use-package evil-magit
+	:init (setq evil-magit-want-horizontal-movement t))
   (defun magit-ignored-files ()
 	(magit-git-items "ls-files" "--others" "--ignored" "--exclude-standard" "-z" "--directory"))
   (defun magit-insert-ignored-files ()
@@ -146,6 +147,8 @@
 
 (use-package fiplr)
 (use-package adaptive-wrap)
+(use-package origami
+  :config (global-origami-mode))
 
 ;(use-package lsp-mode
 ;  :init (add-hook 'prog-mode-hook #'lsp-mode)
@@ -208,6 +211,8 @@
 
 (use-package q-mode
   :mode ("\\.[qk]\\'" . q-mode)
+  :init
+  (add-hook 'q-mode-hook (lambda () (set-variable comint-input-autoexpand nil)))
   :config
   (evil-leader/set-key-for-mode 'q-mode "r" #'q-load-buffer)
   (evil-leader/set-key-for-mode 'q-mode "l" #'q-load)
@@ -251,7 +256,7 @@
 	("4cf3221feff536e2b3385209e9b9dc4c2e0818a69a1cdb4b522756bcdf4e00a4" default)))
  '(package-selected-packages
    (quote
-	(fiplr company-racer evil-magit magit-gh-pulls q-mode evil-org helm evil-smartparens use-package racer popup magit idris-mode helm-core groovy-mode gnu-apl-mode flycheck-rust evil-tabs evil-surround evil-search-highlight-persist evil-numbers evil-mc evil-leader evil-avy dired+ company color-theme-sanityinc-solarized cargo)))
+	(origami fiplr company-racer evil-magit magit-gh-pulls q-mode evil-org helm evil-smartparens use-package racer popup magit idris-mode helm-core groovy-mode gnu-apl-mode flycheck-rust evil-tabs evil-surround evil-search-highlight-persist evil-numbers evil-mc evil-leader evil-avy dired+ company color-theme-sanityinc-solarized cargo)))
  '(q-qsm-path "qsm")
  '(tab-width 4))
 (custom-set-faces
