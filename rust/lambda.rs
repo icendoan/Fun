@@ -7,7 +7,7 @@ use std::collections::HashMap;
 
 use untyped::{parse, sub, Expr};
 
-static STD: [&'static str; 27] = ["S=λn.λf.λx.(f$((n$f)$x))",
+static STD: [&'static str; 32] = ["S=λn.λf.λx.(f$((n$f)$x))",
                                   "P=λn.λf.λx.(((n$λg.λh.(h$(g$f)))$λu.x)$λu.u)",
                                   "0=λf.λx.x",
                                   "1=(S$0)",
@@ -33,7 +33,12 @@ static STD: [&'static str; 27] = ["S=λn.λf.λx.(f$((n$f)$x))",
                                   "~=λp.((p$⊥)$⊤)",
                                   "Z=λn.((n$λx.⊥)$⊤)",
                                   "≤=λm.λn.(Z$((-$m)$n))",
-                                  "==λm.λn.((&$((≤$m)$n))$((≤$n)$m))"];
+                                  "==λm.λn.((&$((≤$m)$n))$((≤$n)$m))",
+                                  ",=λx.λy.λz.((z$x)$y)",
+                                  "↑=λp.(p$T)",
+                                  "↓=λp.(p$F)",
+                                  "W=λp.λf.λx.(((p$x)$(((W$p)$f)$(f$x)))$x)",
+                                  "ι=λn.(((W$λx.(~$(Z$x)))$λx.((,$(P$(↑$x)))$x))$n)"];
 
 fn main() {
 
