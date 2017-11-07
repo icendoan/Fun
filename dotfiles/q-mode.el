@@ -166,7 +166,7 @@
 (defun q-strip (text); order matters, don't rearrange
   (while (string-match "/ .*" text) (setq text (replace-match "" t t text))) ; / comments
   (while (string-match "\\([\n;)]\\)[ \t]*/.*" text) (setq text (replace-match "\\1" t nil text))) ; /comments
-  (while (string-match "\n[ \t]+" text) (setq text (replace-match " " t t text))) ; fold functions
+  ;(while (string-match "\n[ \t]+" text) (setq text (replace-match " " t t text))) ; fold functions
   (while (string-match "\\([:;)]\\)[ \t]+" text) (setq text (replace-match "\\1" t nil text))) ; excess white space
   text)
 
@@ -176,7 +176,8 @@
 ;	(set-buffer (process-buffer (get-process "q")))
 ;	(goto-char (point-max))
 ;	(insert (concat string "\n"))))
-  (comint-simple-send (get-process "q") string ))
+  (comint-simple-send (get-process "q") string)
+  (process-send-eof (get-process "q")))
 
 (defun q-eval-region (start end)
   "Send the current region to the inferior q process."
@@ -557,7 +558,8 @@ indentation and initial slashes.  Behaves usually outside of comment."
     (easy-menu-define inferior-q-menubar-menu nil ""
 		      inferior-q-menubar-menu-1))
   (easy-menu-add inferior-q-menubar-menu)
-  (run-hooks 'inferior-q-mode-hook))
+  (run-hooks 'inferior-q-mode-hook)
+  (local-set-key (kbd "<return>") (lambda () "" (interactive) (comint-send-input) (comint-send-eof))))
 
 (defun q-mode ()
   "Major mode for editing q Language files"

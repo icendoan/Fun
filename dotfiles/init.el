@@ -159,8 +159,12 @@
 
 ; individual language modes
 
+(use-package haskell-mode)
+(use-package intero
+  :init (add-hook 'haskell-mode-hook 'intero-mode))
+
 (use-package idris-mode
-  :mode ("\\.idris\\'" . idris-mode)
+  :mode ("\\.idr\\'" . idris-mode)
   :config
   (evil-leader/set-key-for-mode 'idris-mode (kbd "e") #'idris-make-lemma)
   (evil-leader/set-key-for-mode 'idris-mode (kbd "j") #'idris-load-forward-line)
@@ -178,7 +182,6 @@
 		(if (file-exists-p "../Cargo.toml")
 		    (set (make-local-variable 'compile-command) "cargo check --manifest-path ../Cargo.toml --lib"))
 		(set (make-local-variable 'compile-command) (concat "rustc " buffer-file-name)))))
-  (setq rust-format-on-save t)
   (use-package flycheck-rust
 	:commands flycheck-rust-setup
 	:init (add-hook 'flycheck-mode-hook #'flycheck-rust-setup)))
@@ -250,13 +253,19 @@
  ;; If you edit it by hand, you could mess it up, so be careful.
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
+ '(company-dabbrev-code-ignore-case t)
+ '(company-dabbrev-downcase nil)
  '(company-dabbrev-ignore-case nil)
+ '(company-require-match nil)
+ '(company-tooltip-align-annotations t)
+ '(completion-styles (quote (basic partial-completion emacs22 initials)))
  '(custom-safe-themes
    (quote
 	("4cf3221feff536e2b3385209e9b9dc4c2e0818a69a1cdb4b522756bcdf4e00a4" default)))
+ '(global-company-mode t)
  '(package-selected-packages
    (quote
-	(origami fiplr company-racer evil-magit magit-gh-pulls q-mode evil-org helm evil-smartparens use-package racer popup magit idris-mode helm-core groovy-mode gnu-apl-mode flycheck-rust evil-tabs evil-surround evil-search-highlight-persist evil-numbers evil-mc evil-leader evil-avy dired+ company color-theme-sanityinc-solarized cargo)))
+	(intero haskell-mode origami fiplr company-racer evil-magit magit-gh-pulls q-mode evil-org helm evil-smartparens use-package racer popup magit idris-mode helm-core groovy-mode gnu-apl-mode flycheck-rust evil-tabs evil-surround evil-search-highlight-persist evil-numbers evil-mc evil-leader evil-avy dired+ company color-theme-sanityinc-solarized cargo)))
  '(q-qsm-path "qsm")
  '(tab-width 4))
 (custom-set-faces
