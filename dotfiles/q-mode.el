@@ -164,8 +164,8 @@
   (q-send-string ":r \\w"))
 
 (defun q-strip (text); order matters, don't rearrange
-  (while (string-match "/ .*" text) (setq text (replace-match "" t t text))) ; / comments
-  (while (string-match "\\([\n;)]\\)[ \t]*/.*" text) (setq text (replace-match "\\1" t nil text))) ; /comments
+  ;(while (string-match "/ .*" text) (setq text (replace-match "" t t text))) ; / comments
+  ;(while (string-match "\\([\n;)]\\)[ \t]*/.*" text) (setq text (replace-match "\\1" t nil text))) ; /comments
   ;(while (string-match "\n[ \t]+" text) (setq text (replace-match " " t t text))) ; fold functions
   (while (string-match "\\([:;)]\\)[ \t]+" text) (setq text (replace-match "\\1" t nil text))) ; excess white space
   text)
