@@ -2,6 +2,7 @@
 #![allow(dead_code, unused_features)]
 extern crate test;
 extern crate num; // for bigint
+extern crate itertools;
 fn main() {
     //t();
     //println!("p17: {}", p17());
@@ -717,31 +718,17 @@ fn p28() -> u64
         .sum()
 }
 
-fn p29() -> u64
+fn p29h(a: u64, b: u64) -> u64
 {
-    let mut v = Vec::with_capacity(99*99);
-    for a in 2..101u64
-    {
-        for b in 2..101u32
-        {
-            v.push(a.pow(b));
-        }
-    }
+    let nums: Vec<Vec<num::BigInt>> = (2..a).map(|x| (2..b).map(|y| num::BigInt::from(x).pow(num::BigInt::from(y))).collect()).collect();
+    let mut nums: Vec<num::BigInt> = nums.into_iter().flat_map(|x| x.into_iter()).collect();
 
-    v.sort();
-
-    let mut c = 0;
-    let mut l = 0;
-    for x in v
-    {
-        if x != l
-        {
-            c += 1;
-            l = x;
-        }
-    }
-
-    c
+    nums.sort();
+    nums.dedup();
+    println!("{:?}",&nums);
+    nums.len() as u64
 }
+
+fn p29()->u64{p29h(6,6)}
 
 fn t(){}

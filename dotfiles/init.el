@@ -258,6 +258,7 @@
  '(company-dabbrev-ignore-case nil)
  '(company-require-match nil)
  '(company-tooltip-align-annotations t)
+ '(comint-input-autoexpand nil)
  '(completion-styles (quote (basic partial-completion emacs22 initials)))
  '(custom-safe-themes
    (quote
