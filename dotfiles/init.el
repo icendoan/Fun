@@ -105,7 +105,8 @@
   :init
   (use-package magit-gh-pulls
 	:init (add-hook 'magit-mode-hook #'turn-on-magit-gh-pulls))
-  (use-package evil-magit)
+  (use-package evil-magit
+	:init (setq evil-magit-want-horizontal-movement t))
   (defun magit-ignored-files ()
 	(magit-git-items "ls-files" "--others" "--ignored" "--exclude-standard" "-z" "--directory"))
   (defun magit-insert-ignored-files ()
@@ -127,7 +128,9 @@
   (evil-leader/set-key-for-mode 'org-mode "l" #'org-metaright)
   (evil-leader/set-key-for-mode 'org-mode "t" #'org-todo)
   (evil-leader/set-key-for-mode 'org-mode "p" #'org-priority-up)
-  (evil-leader/set-key-for-mode 'org-mode "P" #'org-priority-down))
+  (evil-leader/set-key-for-mode 'org-mode "P" #'org-priority-down)
+  (setq org-src-tab-acts-natively t)
+  (setq org-src-fontify-natively t))
 
 (use-package company
   :config
@@ -142,6 +145,11 @@
 (use-package doc-view
   :config (setq doc-view-continuous t))
 
+(use-package fiplr)
+(use-package adaptive-wrap)
+(use-package origami
+  :config (global-origami-mode))
+
 ;(use-package lsp-mode
 ;  :init (add-hook 'prog-mode-hook #'lsp-mode)
 ;  :config
@@ -151,8 +159,12 @@
 
 ; individual language modes
 
+(use-package haskell-mode)
+(use-package intero
+  :init (add-hook 'haskell-mode-hook 'intero-mode))
+
 (use-package idris-mode
-  :mode ("\\.idris\\'" . idris-mode)
+  :mode ("\\.idr\\'" . idris-mode)
   :config
   (evil-leader/set-key-for-mode 'idris-mode (kbd "e") #'idris-make-lemma)
   (evil-leader/set-key-for-mode 'idris-mode (kbd "j") #'idris-load-forward-line)
@@ -170,7 +182,6 @@
 		(if (file-exists-p "../Cargo.toml")
 		    (set (make-local-variable 'compile-command) "cargo check --manifest-path ../Cargo.toml --lib"))
 		(set (make-local-variable 'compile-command) (concat "rustc " buffer-file-name)))))
-  (setq rust-format-on-save t)
   (use-package flycheck-rust
 	:commands flycheck-rust-setup
 	:init (add-hook 'flycheck-mode-hook #'flycheck-rust-setup)))
@@ -198,11 +209,13 @@
   (evil-leader/set-key-for-mode 'gnu-apl-mode "r" #'gnu-apl-interactive-send-buffer)
   (evil-leader/set-key-for-mode 'gnu-apl-mode "e" #'gnu-apl-eval-line))
 
-(byte-compile-file "~/.emacs.d/q-mode/q-mode.el")
-(load-file "~/.emacs.d/q-mode/q-mode.elc")
+(byte-compile-file "~/.emacs.d/q-mode.el")
+(load-file "~/.emacs.d/q-mode.elc")
 
 (use-package q-mode
   :mode ("\\.[qk]\\'" . q-mode)
+  :init
+  (add-hook 'q-mode-hook (lambda () (set-variable comint-input-autoexpand nil)))
   :config
   (evil-leader/set-key-for-mode 'q-mode "r" #'q-load-buffer)
   (evil-leader/set-key-for-mode 'q-mode "l" #'q-load)
@@ -235,16 +248,26 @@
 (evil-mode)
 (electric-pair-mode)
 
-
-
 (custom-set-variables
  ;; custom-set-variables was added by Custom.
  ;; If you edit it by hand, you could mess it up, so be careful.
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
+ '(company-dabbrev-code-ignore-case t)
+ '(company-dabbrev-downcase nil)
+ '(company-dabbrev-ignore-case nil)
+ '(company-require-match nil)
+ '(company-tooltip-align-annotations t)
+ '(comint-input-autoexpand nil)
+ '(completion-styles (quote (basic partial-completion emacs22 initials)))
+ '(custom-safe-themes
+   (quote
+	("4cf3221feff536e2b3385209e9b9dc4c2e0818a69a1cdb4b522756bcdf4e00a4" default)))
+ '(global-company-mode t)
  '(package-selected-packages
    (quote
-	(company-racer evil-magit magit-gh-pulls q-mode evil-org helm evil-smartparens use-package racer popup magit idris-mode helm-core groovy-mode gnu-apl-mode flycheck-rust evil-tabs evil-surround evil-search-highlight-persist evil-numbers evil-mc evil-leader evil-avy dired+ company color-theme-sanityinc-solarized cargo)))
+	(intero haskell-mode origami fiplr company-racer evil-magit magit-gh-pulls q-mode evil-org helm evil-smartparens use-package racer popup magit idris-mode helm-core groovy-mode gnu-apl-mode flycheck-rust evil-tabs evil-surround evil-search-highlight-persist evil-numbers evil-mc evil-leader evil-avy dired+ company color-theme-sanityinc-solarized cargo)))
+ '(q-qsm-path "qsm")
  '(tab-width 4))
 (custom-set-faces
  ;; custom-set-faces was added by Custom.

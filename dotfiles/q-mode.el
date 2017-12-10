@@ -49,7 +49,7 @@
   :type 'file
   :group 'q-init)
 
-(defcustom q-qsm-path "/data/q/qsm"
+(defcustom q-qsm-path "qsm"
   "Path to the qsm binary to run q"
   :type 'file
   :group 'q-init)
@@ -84,25 +84,10 @@
   (inferior-q-mode)
   (comint-exec buf "q" q-qsm-path nil nil)
   (setq comint-input-ring-file-name (concat (getenv "HOME") "/.q_history"))
-  (add-hook 'comint-output-filter-functions 'q-mode-insert-inline-image-output nil t)
   (comint-read-input-ring)
   (set-process-sentinel (get-process "q") 'q-process-sentinel)
   (goto-char (point-max))
   )
-
-(defun q-mode-insert-inline-image-output (string)
-  "Checks to see if the buffer name is a q shell, then replaces image responses from qsm with inline images."
-  (unless q-mode-inhibit-filter ; not allowed to recurse back into the filter
-    (let (q-mode-inhibit-filter t))
-    (save-excursion
-      (goto-char (point-max))
-      (beginning-of-line)
-      (when (and (equal (buffer-name) "*q*")
-		 (string-match-p string "GNUPLOT .*"))
-	(inline (ignore-errors
-		  (let ((image (create-image (substring string 8 (length string)))))
-		    (beginning-of-line)
-		    (insert-image image))))))))
 
 (defun q-process-sentinel (proc message)
   "Sentinel for use with q processes.
@@ -179,9 +164,9 @@
   (q-send-string ":r \\w"))
 
 (defun q-strip (text); order matters, don't rearrange
-  (while (string-match "/ .*" text) (setq text (replace-match "" t t text))) ; / comments
-  (while (string-match "\\([\n;)]\\)[ \t]*/.*" text) (setq text (replace-match "\\1" t nil text))) ; /comments
-  (while (string-match "\n[ \t]+" text) (setq text (replace-match " " t t text))) ; fold functions
+  ;(while (string-match "/ .*" text) (setq text (replace-match "" t t text))) ; / comments
+  ;(while (string-match "\\([\n;)]\\)[ \t]*/.*" text) (setq text (replace-match "\\1" t nil text))) ; /comments
+  ;(while (string-match "\n[ \t]+" text) (setq text (replace-match " " t t text))) ; fold functions
   (while (string-match "\\([:;)]\\)[ \t]+" text) (setq text (replace-match "\\1" t nil text))) ; excess white space
   text)
 
@@ -191,7 +176,8 @@
 ;	(set-buffer (process-buffer (get-process "q")))
 ;	(goto-char (point-max))
 ;	(insert (concat string "\n"))))
-  (comint-simple-send (get-process "q") string ))
+  (comint-simple-send (get-process "q") string)
+  (process-send-eof (get-process "q")))
 
 (defun q-eval-region (start end)
   "Send the current region to the inferior q process."
@@ -572,7 +558,8 @@ indentation and initial slashes.  Behaves usually outside of comment."
     (easy-menu-define inferior-q-menubar-menu nil ""
 		      inferior-q-menubar-menu-1))
   (easy-menu-add inferior-q-menubar-menu)
-  (run-hooks 'inferior-q-mode-hook))
+  (run-hooks 'inferior-q-mode-hook)
+  (local-set-key (kbd "<return>") (lambda () "" (interactive) (comint-send-input) (comint-send-eof))))
 
 (defun q-mode ()
   "Major mode for editing q Language files"
