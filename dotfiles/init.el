@@ -242,6 +242,8 @@
 (show-paren-mode)
 (global-set-key (kbd "<f5>") #'compile)
 (global-set-key (kbd "<f4>") #'flycheck-buffer)
+(global-set-key (kbd "C-c C-f") #'fiplr-find-file)
+(global-set-key (kbd "C-c m") #'magit-status)
 (setq compilation-scroll-output 'first-error)
 (desktop-save-mode 1)
 (tool-bar-mode t)
@@ -253,12 +255,12 @@
  ;; If you edit it by hand, you could mess it up, so be careful.
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
+ '(comint-input-autoexpand nil)
  '(company-dabbrev-code-ignore-case t)
  '(company-dabbrev-downcase nil)
  '(company-dabbrev-ignore-case nil)
  '(company-require-match nil)
  '(company-tooltip-align-annotations t)
- '(comint-input-autoexpand nil)
  '(completion-styles (quote (basic partial-completion emacs22 initials)))
  '(custom-safe-themes
    (quote
