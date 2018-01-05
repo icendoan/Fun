@@ -1,6 +1,11 @@
-import Data.Map as M
 import Data.Char
-data R=RAX|RBX|RDX|RSP|RBP|R10 deriving Show
+import Data.List
+import System.Environment
+import System.IO
+import System.Process
+import System.Exit
+data R_=RAX|RBX|RDX|RSP|RBP|R10 deriving Show
+data R=R_ R_
 type E=Either
 type I=Int
 data V=VI I|VR R|DR R I
@@ -25,7 +30,7 @@ data Op = Plus
         | At
 data Verb = V Op [Adverb] 
 data Adverb = Each | Fold | Scan | EachR | EachL
-data Noun = Int I
+data Noun = N_Int I
 data A = A_P [A]
        | A_V Verb 
        | A_N Noun
@@ -33,16 +38,15 @@ data A = A_P [A]
        | A_D A Verb A
 
 parse   :: S -> A
-parse = undefined
+parse _ = (A_N (N_Int 0))
 compile__cc_head :: [ASM]
-compile__cc_head = [Push (VR RBP), Mov (VR RSP) (VR RBP)]
+compile__cc_head = [Push (VR $ R_ RBP), Mov (VR $ R_ RSP) (VR $ R_ RBP)]
 compile__cc_tail :: [ASM]
-compile__cc_tail = [Pop RBP]
+compile__cc_tail = [Pop $ R_ RBP, Ret]
 compile :: A -> [ASM]
-compile _ = compile__cc_head ++ [Mov (VI 0) (VR RAX),Ret]
+compile _ = (Label "main") : compile__cc_head ++ [Mov (VI 0) (VR $ R_ RAX)] ++ compile__cc_tail
 codegen :: [ASM] -> S
-codegen [] = ""
-codegen (x : rest) = (cinstr x) ++ "\n" ++ codegen rest
+codegen asm = (intercalate "\n" (["\t.globl main", "\t.section .text"] ++ (map cinstr asm))) ++ "\n"
   where
     cinstr :: ASM -> S
     cinstr NOOP = ""
@@ -51,6 +55,21 @@ codegen (x : rest) = (cinstr x) ++ "\n" ++ codegen rest
       let (t:ext) = show i in '\t' : (toLower t) : ext
    
 instance Show V where
-  show (VI i) = show i
+  show (VI i) = '$' : show i
   show (VR r) = show r
   show (DR r i) = (show i) ++ "(" ++ show r ++ ")"
+
+instance Show R where
+  show (R_ r) = showR r
+
+showR :: R_ -> S
+showR r = '%' : map toLower (show r)
+
+main :: IO ()
+main = do
+  args <- getArgs
+  input <- readFile (args !! 0)
+  let name = args !! 1
+  writeFile (name ++ ".s") (codegen . compile . parse $ input)
+  code <- system ("gcc " ++ name ++ ".s" ++ " -o " ++ name)
+  exitWith code
