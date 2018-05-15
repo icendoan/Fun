@@ -234,6 +234,7 @@
 (setq auto-save-file-name-transforms `((".*" ,(concat user-emacs-directory "/autosave/") t)))
 (setq inhibit-splash-screen t)
 (set-frame-font "inconsolata:size=12" t t)
+(add-to-list 'after-make-frame-functions (lambda (f) (set-frame-font "inconsolata:size=12" t t)))
 
 (use-package color-theme-sanityinc-solarized
   :config

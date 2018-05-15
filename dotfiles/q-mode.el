@@ -86,8 +86,7 @@
   (setq comint-input-ring-file-name (concat (getenv "HOME") "/.q_history"))
   (comint-read-input-ring)
   (set-process-sentinel (get-process "q") 'q-process-sentinel)
-  (goto-char (point-max))
-  )
+  (goto-char (point-max)))
 
 (defun q-process-sentinel (proc message)
   "Sentinel for use with q processes.
