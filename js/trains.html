@@ -1,0 +1,25 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"/></head><body><script src="trains.js"></script>
+    <center>
+      <table>
+        <tr><th>Balances</th><th>Earnings</th><th>Stocks</th><th>Market</th></tr>
+        <tr>
+          <td><table id="balances-table"><thead><tr><th>acct</th><th>cash</th><th>equity</th></tr></thead></table></td>
+          <td><table id="earnings-table"><tr><th>sym</th><th>income</th></tr></table></td>
+          <td><table id="stocks-table"><tr><th>acct</th><th>sym</th><th>qty</th></tr></table></td>
+          <td><table id="market-table"><tr><th>sym</th><th>price</th><th>avail</th><th>total</th></tr></table></td>
+        </tr>
+      </table>
+      <form><input type="text" id="input"><button type="button" onclick="eval(document.getElementById('input').value)">run</button></form>
+      <br/><b>Events</b><br/>
+      <table id="events-table"><thead><tr><th>acct</th><th>event</th><th>sym</th><th>price</th><th>qty</th></tr></thead></table>
+    </center>
+      * player(account, starting capital)<br/>
+      * ipo(account, starting value, num shares)<br/>
+      * trade(account, sym, qty) - trade('caleb', 'IOW', 2) buys shares, -qty to sell<br/>
+      * div(account, payout, retain%) - div('B&0', 100, 0.5) pays dividends<br/>
+      * train(account, price, qty) removes train money<br/>
+      * price(sym, price) sets price<br/>
+      * stock(account, sym, qty) sets number of stocks owned<br/>
+      * cash(account, amount) adds that amount of cash to that account<br/>
+  </body>
+</html>
