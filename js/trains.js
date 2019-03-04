@@ -48,8 +48,8 @@ S.hooks=S.hooks.concat([bal_stock_hook,draw_stocks_hook]);
 B.hooks.push(draw_balances_hook);
 M.hooks=M.hooks.concat([bal_mkt_hook,draw_market_hook]);
 D.hooks.push(draw_earnings_hook);
-const cacct = x => {console.log("completing acct");const m=B.acct.filter(a => a.match(x+".*")!=undefined);return m[cycle++%m.length]};
-const csym  = x => {console.log("completing sym");const m=M.sym.filter(s => s.match(x+".*")!=undefined);return m[cycle++%m.length]};
+const cacct = x => {console.log("completing acct");const m=B.acct.filter(a => a.match("^"+x+".*")!=undefined);return m[cycle++%m.length]};
+const csym  = x => {console.log("completing sym");const m=M.sym.filter(s => s.match("^"+x+".*")!=undefined);return m[cycle++%m.length]};
 function cname(x){return x;}
 function cnum(x){return x;}
 const commands = {"ipo":   [(a,p,q)=>event(a,'','IPO',  Number(p),Number(q)),[cname,cnum,cnum]],
@@ -66,18 +66,18 @@ const commands = {"ipo":   [(a,p,q)=>event(a,'','IPO',  Number(p),Number(q)),[cn
                   "clear": [clear,                                           []]
                  }
 const parse = x => { const w=x.split(" ");if(commands[w[0]][1].length==w.length-1){commands[w[0]][0].apply(null,w.slice(1));return true;}else{return false;}}
-var marker = 0; var cycle = 0;const keys = Object.keys;
+var marker = ""; var cycle = 0;const keys = Object.keys;
 const complete = x => {
     const w=x.split(" ");
     if(w.length===0){return keys(commands)[cycle++%keys(commands).length]}
-    if((w.length===1)&&!keys(commands).includes(w[0])){const m=keys(commands).filter(c=>c.match(w[0]+".*")!=undefined);return m[cycle++%m.length];}
+    if((w.length===1)&&!keys(commands).includes(w[0])){const m=keys(commands).filter(c=>c.match("^"+w[0]+".*")!=undefined);return m[cycle++%m.length];}
     if(w.length>commands[w[0]][1].length){return w.slice(0,commands[w[0]][1].length+1).join(" ");}
     else{w[w.length-1]=commands[w[0]][1][w.length-2](w[w.length-1]);return w.join(" ");}}
 const replay = x => {clear(); x.split("\n").slice(1).map(x => x.split(",")).forEach(r => event(r[0],r[1],r[2],Number(r[3]),Number(r[4])))};
 window.onload=()=>{
     console.log("loaded");
     const txt = document.getElementById('input');
-    txt.onkeypress=x=>{if(x.key==='Enter'){if(parse(txt.value)){txt.value="";marker=0;cycle=0};x.preventDefault(x);};}
-    txt.onkeydown=x=>{if(x.key==='Tab'){txt.value=complete(txt.value.slice(0,marker));x.preventDefault(x);}}
-    txt.oninput=()=>{marker=txt.value.length;cycle=0;};
+    txt.onkeypress=x=>{if(x.key==='Enter'){if(parse(txt.value)){txt.value="";marker="";cycle=0};x.preventDefault(x);};}
+    txt.onkeydown=x=>{if(x.key==='Tab'){txt.value=complete(marker);x.preventDefault(x);}}
+    txt.oninput=()=>{marker=txt.value;cycle=0;};
     if(sessionStorage.getItem('csv')){replay(sessionStorage.getItem('csv'))}else{sessionStorage.setItem('csv','acct,sym,event,price,qty')};}
