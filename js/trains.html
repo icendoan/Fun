@@ -13,15 +13,13 @@
       <br/><b>Events</b><br/>
       <table id="events-table"><thead><tr><th>acct</th><th>event</th><th>sym</th><th>price</th><th>qty</th></tr></thead></table>
     </center>
-    <!--
-      * player(account, starting capital)<br/>
-      * ipo(account, starting value, num shares)<br/>
-      * trade(account, sym, qty) - trade('caleb', 'IOW', 2) buys shares, -qty to sell<br/>
-      * div(account, payout, retain%) - div('B&0', 100, 0.5) pays dividends<br/>
-      * train(account, price, qty) removes train money<br/>
-      * price(sym, price) sets price<br/>
-      * stock(account, sym, qty) sets number of stocks owned<br/>
-      * cash(account, amount) adds that amount of cash to that account<br/>
-    -->
+    commands:<br/>
+    player account starting-money - creates a new player<br/>
+    ipo account starting-money number-of-shares - creates a new company</br>
+    trade account sym qty - adds a trade, use negative qty to sell</br>
+    div account payout retain% - pays a dividend</br>
+    train account price qty - buys a train</br>
+    stock account sym qty - adds max stocks to a company, leaves in company treasury</br>
+    cash account amount - adds a cash amount to an account</br>
   </body>
 </html>

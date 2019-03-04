@@ -73,7 +73,7 @@ const complete = x => {
     if((w.length===1)&&!keys(commands).includes(w[0])){const m=keys(commands).filter(c=>c.match(w[0]+".*")!=undefined);return m[cycle++%m.length];}
     if(w.length>commands[w[0]][1].length){return w.slice(0,commands[w[0]][1].length+1).join(" ");}
     else{w[w.length-1]=commands[w[0]][1][w.length-2](w[w.length-1]);return w.join(" ");}}
-const replay = x => {clear(); x.split("\n").map(x => x.split(",")).forEach(r => event(r[0],r[1],r[2],Number(r[3]),Number(r[4])))};
+const replay = x => {clear(); x.split("\n").slice(1).map(x => x.split(",")).forEach(r => event(r[0],r[1],r[2],Number(r[3]),Number(r[4])))};
 window.onload=()=>{
     console.log("loaded");
     const txt = document.getElementById('input');
