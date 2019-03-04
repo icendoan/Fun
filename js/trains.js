@@ -9,7 +9,7 @@ const tc = t => {while(t.rows.length>1)t.deleteRow(-1);return t;}
 const prx = s => {const i=M.sym.findIndex(x=>x===s);return i<0?0:M.price[i];}
 const tot = s => {const i=M.sym.findIndex(x=>x===s);return i<0?0:M.total[i];}
 const own = (a,s)=> {for(var i=0;i<S.sym.length;i++)if((S.sym[i]===s)&&S.acct[i]===a)return S.qty[i];return 0;}
-const clear = () => {[E,B,M,S,D].forEach(t=>Object.keys(t).filter(f=>f!=='hooks').forEach(f=>t[f]=[]));sessionStorage.removeItem('csv');}
+const clear = () => {[E,B,M,S,D].forEach(t=>Object.keys(t).filter(f=>f!=='hooks').forEach(f=>t[f]=[]));sessionStorage.removeItem('csv');clear_all_tables();}
 const rewind  = (e,n) => {clear();var p;for(var i=0;i<E.sym.length-n;i++){p=[];for(var f in e)if(f!=='hooks')p.push(e[f][i]);event.apply(null,p);}}
 const hooks = (t, i) => {var p = [];for(const f in t)if(f!=='hooks')p.push(t[f][i]);t.hooks.forEach(f=>f.apply(null,p));}
 const balance_event_hook = (a,s,e,p,q) => {
@@ -35,6 +35,7 @@ const stock_event_hook = (a,s,e,p,q) => {
 const div_event_hook = (a,s,e,p,q) => {
     var i=D.acct.findIndex(x=>x===a);
     if(e==='DIV'){if(i<0){i=D.acct.length;D.acct.push(a);D.earnings.push(p);}else{D.earnings[i]=p;}hooks(D,i);}}
+const clear_all_tables = () => {const tables=["events-table","balances-table","earnings-table","stocks-table","market-table"];for(x in tables) ct(document.getElementById(tables[x]));}
 const bal_stock_hook = (a,s,q) => {const i=B.acct.findIndex(x=>x===a);var v=0;for(var j=0;j<S.sym.length;j++)if(S.acct[j]===a)v+=S.qty[j]*prx(S.sym[j]);B.eqty[i]=v;hooks(B,i);}
 const bal_mkt_hook = (s,p,a,t) => {for(var i=0;i<S.acct.length;i++)if(S.sym[i]===s)bal_stock_hook(S.acct[i],s,NaN);}
 const draw_event_hook = (a,s,e,p,q) => {const tr = document.getElementById("events-table").insertRow(1); const td = (i,x) => tr.insertCell(i).innerHTML=x; td(0,a);td(1,e);td(2,s);td(3,p);td(4,q);}
@@ -70,7 +71,7 @@ var marker = ""; var cycle = 0;const keys = Object.keys;
 const complete = x => {
     const w=x.split(" ");
     if(w.length===0){return keys(commands)[cycle++%keys(commands).length]}
-    if((w.length===1)&&!keys(commands).includes(w[0])){const m=keys(commands).filter(c=>c.match("^"+w[0]+".*")!=undefined);return m[cycle++%m.length];}
+    if((w.length===1)&&!keys(commands).includes(w[0])){const m=keys(commands).filter(c=>c.match("^"+w[0]+".*")!=undefined);return m.length>0?m[cycle++%m.length]:x;}
     if(w.length>commands[w[0]][1].length){return w.slice(0,commands[w[0]][1].length+1).join(" ");}
     else{w[w.length-1]=commands[w[0]][1][w.length-2](w[w.length-1]);return w.join(" ");}}
 const replay = x => {clear(); x.split("\n").slice(1).map(x => x.split(",")).forEach(r => event(r[0],r[1],r[2],Number(r[3]),Number(r[4])))};
