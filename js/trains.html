@@ -9,10 +9,11 @@
           <td><table id="market-table"><tr><th>sym</th><th>price</th><th>avail</th><th>total</th></tr></table></td>
         </tr>
       </table>
-      <form><input type="text" id="input"><button type="button" onclick="eval(document.getElementById('input').value)">run</button></form>
+      <textarea id="input" spellcheck="false" rows="1" columns="100" width="100%" autocomplete="off" autocapitalise="none" style="resize:none;width:100%"></textarea>
       <br/><b>Events</b><br/>
       <table id="events-table"><thead><tr><th>acct</th><th>event</th><th>sym</th><th>price</th><th>qty</th></tr></thead></table>
     </center>
+    <!--
       * player(account, starting capital)<br/>
       * ipo(account, starting value, num shares)<br/>
       * trade(account, sym, qty) - trade('caleb', 'IOW', 2) buys shares, -qty to sell<br/>
@@ -21,5 +22,6 @@
       * price(sym, price) sets price<br/>
       * stock(account, sym, qty) sets number of stocks owned<br/>
       * cash(account, amount) adds that amount of cash to that account<br/>
+    -->
   </body>
 </html>

@@ -5,20 +5,13 @@ const M = { sym: [], price: [], avail: [], total: [], hooks: [] }
 const S = { acct: [], sym: [], qty: [], hooks: [] }
 const D = { acct: [], earnings: [], hooks: [] }
 const event=(a,s,e,p,q)=>{const i=E.acct.length;E.acct.push(a);E.sym.push(s);E.event.push(e);E.price.push(p);E.qty.push(q);hooks(E,i)}
-const clear = t => {while(t.rows.length>1)t.deleteRow(-1);return t;}
+const tc = t => {while(t.rows.length>1)t.deleteRow(-1);return t;}
 const prx = s => {const i=M.sym.findIndex(x=>x===s);return i<0?0:M.price[i];}
 const tot = s => {const i=M.sym.findIndex(x=>x===s);return i<0?0:M.total[i];}
 const own = (a,s)=> {for(var i=0;i<S.sym.length;i++)if((S.sym[i]===s)&&S.acct[i]===a)return S.qty[i];return 0;}
-const ipo   = (a,p,q) => event(a, '', 'IPO', p, q)
-const trade = (a,s,q) => event(a, s,'TRADE', prx(s), q)
-const div   = (a,p,q) => event(a, '', 'DIV', p, q)
-const price = (s,p)   => event('', s, 'PRICE', p, 0)
-const train = (a,p,q) => event(a,'','TRAIN',p,q)
-const stock = (a,s,q) => event(a, s, 'STOCK', prx(s), q)
-const player= (a,p)   => event(a,'','IPO',p,0)
-const cash  = (a,q)   => event(a,'','CASH',0,q)
-const dbg = (x) => {console.log(x);x}
-const hooks = (t, i) => {var p = [];for (var f in t)if(f!=='hooks')p.push(t[f][i]);t.hooks.forEach(f=>f.apply(null,p));}
+const clear = () => {[E,B,M,S,D].forEach(t=>Object.keys(t).filter(f=>f!=='hooks').forEach(f=>t[f]=[]));sessionStorage.removeItem('csv');}
+const rewind  = (e,n) => {clear();var p;for(var i=0;i<E.sym.length-n;i++){p=[];for(var f in e)if(f!=='hooks')p.push(e[f][i]);event.apply(null,p);}}
+const hooks = (t, i) => {var p = [];for(const f in t)if(f!=='hooks')p.push(t[f][i]);t.hooks.forEach(f=>f.apply(null,p));}
 const balance_event_hook = (a,s,e,p,q) => {
     var i = B.acct.findIndex(x=>x===a);
     if(e==='IPO'){if(i<0){i=B.acct.length;B.acct.push(a);B.cash.push(q>0?0:p);B.eqty.push(0);}else{B.cash[i]=q>0?0:p;B.eqty[i]=0;}hooks(B,i)}
@@ -45,13 +38,46 @@ const div_event_hook = (a,s,e,p,q) => {
 const bal_stock_hook = (a,s,q) => {const i=B.acct.findIndex(x=>x===a);var v=0;for(var j=0;j<S.sym.length;j++)if(S.acct[j]===a)v+=S.qty[j]*prx(S.sym[j]);B.eqty[i]=v;hooks(B,i);}
 const bal_mkt_hook = (s,p,a,t) => {for(var i=0;i<S.acct.length;i++)if(S.sym[i]===s)bal_stock_hook(S.acct[i],s,NaN);}
 const draw_event_hook = (a,s,e,p,q) => {const tr = document.getElementById("events-table").insertRow(1); const td = (i,x) => tr.insertCell(i).innerHTML=x; td(0,a);td(1,e);td(2,s);td(3,p);td(4,q);}
-const draw_balances_hook = () => {const t = clear(document.getElementById("balances-table")); for(var i=0;i<B.acct.length;i++){const r=t.insertRow(i+1);r.insertCell(0).innerHTML=B.acct[i];r.insertCell(1).innerHTML=B.cash[i].toString(); r.insertCell(2).innerHTML=B.eqty[i].toString();}}
-const draw_earnings_hook = () => {const t=clear(document.getElementById("earnings-table")); for(var i=0;i<D.acct.length;i++){const r=t.insertRow(i+1);r.insertCell(0).innerHTML=D.acct[i]; r.insertCell(1).innerHTML=D.earnings[i].toString();}}
-const draw_stocks_hook = () => {const t=clear(document.getElementById("stocks-table")); for(var i=0;i<S.acct.length;i++){const r=t.insertRow(i+1); r.insertCell(0).innerHTML=S.acct[i]; r.insertCell(1).innerHTML=S.sym[i]; r.insertCell(2).innerHTML=S.qty[i].toString();}}
-const draw_market_hook =()=>{const t=clear(document.getElementById("market-table")); for(var i=0;i<M.sym.length;i++){const r=t.insertRow(i+1);r.insertCell(0).innerHTML=M.sym[i];r.insertCell(1).innerHTML=M.price[i].toString(); r.insertCell(2).innerHTML=M.avail[i].toString();r.insertCell(3).innerHTML=M.total[i].toString();}}
-E.hooks=E.hooks.concat([balance_event_hook,market_event_hook,stock_event_hook,div_event_hook,draw_event_hook])
+const draw_balances_hook = () => {const t = tc(document.getElementById("balances-table")); for(var i=0;i<B.acct.length;i++){const r=t.insertRow(i+1);r.insertCell(0).innerHTML=B.acct[i];r.insertCell(1).innerHTML=B.cash[i].toString(); r.insertCell(2).innerHTML=B.eqty[i].toString();}}
+const draw_earnings_hook = () => {const t=tc(document.getElementById("earnings-table")); for(var i=0;i<D.acct.length;i++){const r=t.insertRow(i+1);r.insertCell(0).innerHTML=D.acct[i]; r.insertCell(1).innerHTML=D.earnings[i].toString();}}
+const draw_stocks_hook = () => {const t=tc(document.getElementById("stocks-table")); for(var i=0;i<S.acct.length;i++){const r=t.insertRow(i+1); r.insertCell(0).innerHTML=S.acct[i]; r.insertCell(1).innerHTML=S.sym[i]; r.insertCell(2).innerHTML=S.qty[i].toString();}}
+const draw_market_hook =()=>{const t=tc(document.getElementById("market-table")); for(var i=0;i<M.sym.length;i++){const r=t.insertRow(i+1);r.insertCell(0).innerHTML=M.sym[i];r.insertCell(1).innerHTML=M.price[i].toString(); r.insertCell(2).innerHTML=M.avail[i].toString();r.insertCell(3).innerHTML=M.total[i].toString();}}
+const store_event_hook=(a,s,e,p,q)=>sessionStorage.setItem('csv',sessionStorage.getItem('csv')+"\n"+[a,s,e,p,q].join(","));
+E.hooks=E.hooks.concat([balance_event_hook,market_event_hook,stock_event_hook,div_event_hook,draw_event_hook,store_event_hook])
 S.hooks=S.hooks.concat([bal_stock_hook,draw_stocks_hook]);
 B.hooks.push(draw_balances_hook);
 M.hooks=M.hooks.concat([bal_mkt_hook,draw_market_hook]);
 D.hooks.push(draw_earnings_hook);
-const test = () => { player("caleb",1000); ipo("B&O",1000,5); trade("B&O","B&O",-5); trade("caleb","B&O",2); train("B&O",100,2); div("B&O",100,0.5); price("B&O",82); stock("B&O","B&O",5); }
+const cacct = x => {console.log("completing acct");const m=B.acct.filter(a => a.match(x+".*")!=undefined);return m[cycle++%m.length]};
+const csym  = x => {console.log("completing sym");const m=M.sym.filter(s => s.match(x+".*")!=undefined);return m[cycle++%m.length]};
+function cname(x){return x;}
+function cnum(x){return x;}
+const commands = {"ipo":   [(a,p,q)=>event(a,'','IPO',  Number(p),Number(q)),[cname,cnum,cnum]],
+                  "trade": [(a,s,q)=>event(a,s, 'TRADE',prx(s),   Number(q)),[cacct,csym,cnum]],
+                  "div":   [(a,p,q)=>event(a,'','DIV',  Number(p),Number(q)),[cacct,cnum,cnum]],
+                  "train": [(a,p,q)=>event(a,'','TRAIN',Number(p),Number(q)),[csym, cnum,cnum]],
+                  "stock": [(a,s,q)=>event(a,s, 'STOCK',prx(s),   Number(q)),[cacct,csym,cnum]],
+                  "player":[(a,p)  =>event(a,'','IPO',  Number(p),0        ),[cname,cnum]],
+                  "cash":  [(a,q)  =>event(a,'','CASH', 0,        Number(q)),[cacct,cnum]],
+                  "rewind":[rewind,                                          [cnum]],
+                  //"load":  [x => replay(new FileReader(new File(x)).readAsText().result), []],
+                  "save":  [()=>window.open(encodeURI("data:text/csv;charset:utf-8;"+sessionStorage.getItem('csv'))),[]],
+                  "undo":  [()=>rewind(E,1),                                 []],
+                  "clear": [clear,                                           []]
+                 }
+const parse = x => { const w=x.split(" ");if(commands[w[0]][1].length==w.length-1){commands[w[0]][0].apply(null,w.slice(1));return true;}else{return false;}}
+var marker = 0; var cycle = 0;const keys = Object.keys;
+const complete = x => {
+    const w=x.split(" ");
+    if(w.length===0){return keys(commands)[cycle++%keys(commands).length]}
+    if((w.length===1)&&!keys(commands).includes(w[0])){const m=keys(commands).filter(c=>c.match(w[0]+".*")!=undefined);return m[cycle++%m.length];}
+    if(w.length>commands[w[0]][1].length){return w.slice(0,commands[w[0]][1].length+1).join(" ");}
+    else{w[w.length-1]=commands[w[0]][1][w.length-2](w[w.length-1]);return w.join(" ");}}
+const replay = x => {clear(); x.split("\n").map(x => x.split(",")).forEach(r => event(r[0],r[1],r[2],Number(r[3]),Number(r[4])))};
+window.onload=()=>{
+    console.log("loaded");
+    const txt = document.getElementById('input');
+    txt.onkeypress=x=>{if(x.key==='Enter'){if(parse(txt.value)){txt.value="";marker=0;cycle=0};x.preventDefault(x);};}
+    txt.onkeydown=x=>{if(x.key==='Tab'){txt.value=complete(txt.value.slice(0,marker));x.preventDefault(x);}}
+    txt.oninput=()=>{marker=txt.value.length;cycle=0;};
+    if(sessionStorage.getItem('csv')){replay(sessionStorage.getItem('csv'))}else{sessionStorage.setItem('csv','acct,sym,event,price,qty')};}
