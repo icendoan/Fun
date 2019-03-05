@@ -43,7 +43,7 @@ const draw_balances_hook = () => {const t = tc(document.getElementById("balances
 const draw_earnings_hook = () => {const t=tc(document.getElementById("earnings-table")); for(var i=0;i<D.acct.length;i++){const r=t.insertRow(i+1);r.insertCell(0).innerHTML=D.acct[i]; r.insertCell(1).innerHTML=D.earnings[i].toString();}}
 const draw_stocks_hook = () => {const t=tc(document.getElementById("stocks-table")); for(var i=0;i<S.acct.length;i++){const r=t.insertRow(i+1); r.insertCell(0).innerHTML=S.acct[i]; r.insertCell(1).innerHTML=S.sym[i]; r.insertCell(2).innerHTML=S.qty[i].toString();}}
 const draw_market_hook =()=>{const t=tc(document.getElementById("market-table")); for(var i=0;i<M.sym.length;i++){const r=t.insertRow(i+1);r.insertCell(0).innerHTML=M.sym[i];r.insertCell(1).innerHTML=M.price[i].toString(); r.insertCell(2).innerHTML=M.avail[i].toString();r.insertCell(3).innerHTML=M.total[i].toString();}}
-const store_event_hook=(a,s,e,p,q)=>localStorage.setItem('csv',sessionStorage.getItem('csv')+"\n"+[a,s,e,p,q].join(","));
+const store_event_hook=(a,s,e,p,q)=>localStorage.setItem('csv',localStorage.getItem('csv')+"\n"+[a,s,e,p,q].join(","));
 E.hooks=E.hooks.concat([balance_event_hook,market_event_hook,stock_event_hook,div_event_hook,draw_event_hook,store_event_hook])
 S.hooks=S.hooks.concat([bal_stock_hook,draw_stocks_hook]);
 B.hooks.push(draw_balances_hook);
@@ -83,4 +83,4 @@ window.onload=()=>{
     txt.onkeypress=x=>{if(x.key==='Enter'){if(parse(txt.value)){txt.value="";marker="";cycle=0};x.preventDefault(x);};}
     txt.onkeydown=x=>{if(x.key==='Tab'){txt.value=complete(marker);x.preventDefault(x);}}
     txt.oninput=()=>{marker=txt.value;cycle=0;};
-    if(localStorage.getItem('csv')){replay(sessionStorage.getItem('csv'))}else{sessionStorage.setItem('csv','acct,sym,event,price,qty')};}
+    if(localStorage.getItem('csv')){replay(localStorage.getItem('csv'))}else{localStorage.setItem('csv','acct,sym,event,price,qty')};}
