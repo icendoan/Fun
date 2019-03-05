@@ -9,7 +9,7 @@ const tc = t => {while(t.rows.length>1)t.deleteRow(-1);return t;}
 const prx = s => {const i=M.sym.findIndex(x=>x===s);return i<0?0:M.price[i];}
 const tot = s => {const i=M.sym.findIndex(x=>x===s);return i<0?0:M.total[i];}
 const own = (a,s)=> {for(var i=0;i<S.sym.length;i++)if((S.sym[i]===s)&&S.acct[i]===a)return S.qty[i];return 0;}
-const clear = () => {[E,B,M,S,D].forEach(t=>Object.keys(t).filter(f=>f!=='hooks').forEach(f=>t[f]=[]));sessionStorage.setItem('csv','acct,sym,event,price,qty');clear_all_tables();}
+const clear = () => {[E,B,M,S,D].forEach(t=>Object.keys(t).filter(f=>f!=='hooks').forEach(f=>t[f]=[]));localStorage.setItem('csv','acct,sym,event,price,qty');clear_all_tables();}
 const rewind = n => {const a=E.acct;const s=E.sym;const e=E.event;const p=E.price;const q=E.qty;clear();for(var i=0;i<s.length-n;i++)event(a[i],s[i],e[i],p[i],q[i])}
 const hooks = (t, i) => {var p = [];for(const f in t)if(f!=='hooks')p.push(t[f][i]);t.hooks.forEach(f=>f.apply(null,p));}
 const balance_event_hook = (a,s,e,p,q) => {
@@ -43,7 +43,7 @@ const draw_balances_hook = () => {const t = tc(document.getElementById("balances
 const draw_earnings_hook = () => {const t=tc(document.getElementById("earnings-table")); for(var i=0;i<D.acct.length;i++){const r=t.insertRow(i+1);r.insertCell(0).innerHTML=D.acct[i]; r.insertCell(1).innerHTML=D.earnings[i].toString();}}
 const draw_stocks_hook = () => {const t=tc(document.getElementById("stocks-table")); for(var i=0;i<S.acct.length;i++){const r=t.insertRow(i+1); r.insertCell(0).innerHTML=S.acct[i]; r.insertCell(1).innerHTML=S.sym[i]; r.insertCell(2).innerHTML=S.qty[i].toString();}}
 const draw_market_hook =()=>{const t=tc(document.getElementById("market-table")); for(var i=0;i<M.sym.length;i++){const r=t.insertRow(i+1);r.insertCell(0).innerHTML=M.sym[i];r.insertCell(1).innerHTML=M.price[i].toString(); r.insertCell(2).innerHTML=M.avail[i].toString();r.insertCell(3).innerHTML=M.total[i].toString();}}
-const store_event_hook=(a,s,e,p,q)=>sessionStorage.setItem('csv',sessionStorage.getItem('csv')+"\n"+[a,s,e,p,q].join(","));
+const store_event_hook=(a,s,e,p,q)=>localStorage.setItem('csv',sessionStorage.getItem('csv')+"\n"+[a,s,e,p,q].join(","));
 E.hooks=E.hooks.concat([balance_event_hook,market_event_hook,stock_event_hook,div_event_hook,draw_event_hook,store_event_hook])
 S.hooks=S.hooks.concat([bal_stock_hook,draw_stocks_hook]);
 B.hooks.push(draw_balances_hook);
@@ -61,8 +61,9 @@ const commands = {"ipo":   [(a,p,q)=>event(a,'','IPO',  Number(p),Number(q)),[cn
                   "player":[(a,p)  =>event(a,'','IPO',  Number(p),0        ),[cname,cnum]],
                   "cash":  [(a,q)  =>event(a,'','CASH', 0,        Number(q)),[cacct,cnum]],
                   "rewind":[rewind,                                          [cnum]],
+                  "price": [(s,p)  =>event('',s,'PRICE',p,        NaN),      [csym,cnum]],
                   //"load":  [x => replay(new FileReader(new File(x)).readAsText().result), []],
-                  "save":  [()=>window.open(encodeURI("data:text/csv;charset:utf-8;"+sessionStorage.getItem('csv'))),[]],
+                  "save":  [()=>window.open(encodeURI("data:text/csv;charset:utf-8;"+localStorage.getItem('csv'))),[]],
                   "undo":  [()=>rewind(E,1),                                 []],
                   "clear": [clear,                                           []],
                   "fold":  [a => event(a,'','FOLD',0,0),                     [csym]]
@@ -82,4 +83,4 @@ window.onload=()=>{
     txt.onkeypress=x=>{if(x.key==='Enter'){if(parse(txt.value)){txt.value="";marker="";cycle=0};x.preventDefault(x);};}
     txt.onkeydown=x=>{if(x.key==='Tab'){txt.value=complete(marker);x.preventDefault(x);}}
     txt.oninput=()=>{marker=txt.value;cycle=0;};
-    if(sessionStorage.getItem('csv')){replay(sessionStorage.getItem('csv'))}else{sessionStorage.setItem('csv','acct,sym,event,price,qty')};}
+    if(localStorage.getItem('csv')){replay(sessionStorage.getItem('csv'))}else{sessionStorage.setItem('csv','acct,sym,event,price,qty')};}
