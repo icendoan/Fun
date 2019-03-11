@@ -49,10 +49,9 @@ S.hooks=S.hooks.concat([bal_stock_hook,draw_stocks_hook]);
 B.hooks.push(draw_balances_hook);
 M.hooks=M.hooks.concat([bal_mkt_hook,draw_market_hook]);
 D.hooks.push(draw_earnings_hook);
-const cacct = x => {console.log("completing acct");const m=B.acct.filter(a => a.match("^"+x+".*")!=undefined);return m[cycle++%m.length]};
-const csym  = x => {console.log("completing sym");const m=M.sym.filter(s => s.match("^"+x+".*")!=undefined);return m[cycle++%m.length]};
-function cname(x){return x;}
-function cnum(x){return x;}
+const cacct = x => {const m=B.acct.filter(a => a.match("^"+x+".*")!=undefined);return m[cycle++%m.length]};
+const csym  = x => {const m=M.sym.filter(s => s.match("^"+x+".*")!=undefined);return m[cycle++%m.length]};
+function cname(x){return x;}function cnum(x){return x;}
 const commands = {"ipo":   [(a,p,q)=>event(a,'','IPO',  Number(p),Number(q)),[cname,cnum,cnum]],
                   "trade": [(a,s,q)=>event(a,s, 'TRADE',prx(s),   Number(q)),[cacct,csym,cnum]],
                   "div":   [(a,p,q)=>event(a,'','DIV',  Number(p),Number(q)),[csym, cnum,cnum]],
@@ -64,7 +63,7 @@ const commands = {"ipo":   [(a,p,q)=>event(a,'','IPO',  Number(p),Number(q)),[cn
                   "price": [(s,p)  =>event('',s,'PRICE',p,        NaN),      [csym,cnum]],
                   //"load":  [x => replay(new FileReader(new File(x)).readAsText().result), []],
                   "save":  [()=>window.open(encodeURI("data:text/csv;charset:utf-8;"+localStorage.getItem('csv'))),[]],
-                  "undo":  [()=>rewind(E,1),                                 []],
+                  "undo":  [()=>rewind(1),                                   []],
                   "clear": [clear,                                           []],
                   "fold":  [a => event(a,'','FOLD',0,0),                     [csym]]
                  }
